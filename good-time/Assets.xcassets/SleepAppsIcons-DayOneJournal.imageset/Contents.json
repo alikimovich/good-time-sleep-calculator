@@ -1,0 +1,23 @@
+{
+  "images" : [
+    {
+      "filename" : "aleep_apps_icons_day_one_journal.png",
+      "idiom" : "universal",
+      "scale" : "1x"
+    },
+    {
+      "filename" : "aleep_apps_icons_day_one_journal@2x.png",
+      "idiom" : "universal",
+      "scale" : "2x"
+    },
+    {
+      "filename" : "aleep_apps_icons_day_one_journal@3x.png",
+      "idiom" : "universal",
+      "scale" : "3x"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

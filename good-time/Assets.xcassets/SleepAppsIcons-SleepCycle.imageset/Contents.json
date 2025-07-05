@@ -1,0 +1,23 @@
+{
+  "images" : [
+    {
+      "filename" : "aleep_apps_icons_sleep_cycle.png",
+      "idiom" : "universal",
+      "scale" : "1x"
+    },
+    {
+      "filename" : "aleep_apps_icons_sleep_cycle@2x.png",
+      "idiom" : "universal",
+      "scale" : "2x"
+    },
+    {
+      "filename" : "aleep_apps_icons_sleep_cycle@3x.png",
+      "idiom" : "universal",
+      "scale" : "3x"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

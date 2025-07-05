@@ -1,0 +1,38 @@
+/* 
+  Localizable.strings
+  good-time
+
+  Created by Andrei Alikimovich on 6/5/25.
+*/
+
+// IntroView
+"intro.title" = "Una buena noche\nconsiste en 5-6\nciclos de sueño\ncompletos";
+"intro.subtitle" = "Si te acuestas ahora, intenta despertarte a una de estas horas";
+
+// TabView
+"tab.wakeup" = "Despertar";
+"tab.bedtime" = "Acostarse";
+
+// WakeUpView
+"wakeup.title" = "Hora de Despertar";
+"wakeup.header" = "¿Te vas a la cama? Intenta despertarte a una de estas horas para sentirte mejor mañana";
+"wakeup.cycles" = "%d CICLOS";
+"wakeup.best_time" = "la mejor hora para despertar";
+"wakeup.footer" = "Una buena noche de sueño consiste en 5-6 ciclos completos. Un ser humano promedio tarda unos 15 minutos en dormirse";
+
+// BedTimeView
+"bedtime.title" = "Hora de Ir a la Cama";
+"bedtime.header" = "Si quieres despertar a las %@";
+"bedtime.datepicker_title" = "Elige la hora a la que quieres despertar:";
+
+// SettingsView
+"settings.title" = "Ajustes";
+"settings.section.sleep_details" = "Detalles del Sueño";
+"settings.time_to_fall_asleep" = "Tiempo para dormirse";
+"settings.sleep_cycle_length" = "Duración del ciclo de sueño";
+"settings.minute" = "%d min";
+"settings.section.wake_up" = "Despertar";
+"settings.wake_up_time" = "Hora de despertar";
+"settings.section.reminders" = "Recordatorios";
+"settings.bedtime_auto_reminders" = "Recordatorios automáticos de hora de dormir";
+"settings.done" = "Hecho"; 

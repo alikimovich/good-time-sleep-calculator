@@ -1,0 +1,38 @@
+/* 
+  Localizable.strings
+  good-time
+
+  Created by Andrei Alikimovich on 6/5/25.
+*/
+
+// IntroView
+"intro.title" = "A good night\nconsists of 5-6\ncomplete sleep\ncycles";
+"intro.subtitle" = "If you go to bed right now, try to wake up at one of these times";
+
+// TabView
+"tab.wakeup" = "Wake Up";
+"tab.bedtime" = "Bed Time";
+
+// WakeUpView
+"wakeup.title" = "Time to Wake Up";
+"wakeup.header" = "Going to bed? Try to wake up at one of these times to feel better next morning";
+"wakeup.cycles" = "%d CYCLES";
+"wakeup.best_time" = "the best time to wake up";
+"wakeup.footer" = "A good night consists of 5-6 complete sleep cycles. It takes an average human about 15 minutes to fall asleep";
+
+// BedTimeView
+"bedtime.title" = "Time to Go to Bed";
+"bedtime.header" = "If you want to wake up at %@";
+"bedtime.datepicker_title" = "Choose time you want to wake up:";
+
+// SettingsView
+"settings.title" = "Settings";
+"settings.section.sleep_details" = "Sleep Details";
+"settings.time_to_fall_asleep" = "Time to fall asleep";
+"settings.sleep_cycle_length" = "Sleep cycle length";
+"settings.minute" = "%d min";
+"settings.section.wake_up" = "Wake Up";
+"settings.wake_up_time" = "Wake up time";
+"settings.section.reminders" = "Reminders";
+"settings.bedtime_auto_reminders" = "Bedtime auto reminders";
+"settings.done" = "Done"; 

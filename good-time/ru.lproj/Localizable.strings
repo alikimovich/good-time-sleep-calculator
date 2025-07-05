@@ -1,0 +1,38 @@
+/* 
+  Localizable.strings
+  good-time
+
+  Created by Andrei Alikimovich on 6/5/25.
+*/
+
+// IntroView
+"intro.title" = "Чтобы выспаться, необходимо спать 5-6 циклов сна";
+"intro.subtitle" = " ";
+
+// TabView
+"tab.wakeup" = "Пробуждение";
+"tab.bedtime" = "Отбой";
+
+// WakeUpView
+"wakeup.title" = "";
+"wakeup.header" = "Собираетесь спать? Поставьте будильник на предложенное время чтобы чувствовать себя лучше на следующее утро";
+"wakeup.cycles" = "%d ↻";
+"wakeup.best_time" = "лучшее время";
+"wakeup.footer" = "Чтобы выспаться, необходимо спать 5-6 циклов сна.";
+
+// BedTimeView
+"bedtime.title" = "Время ложиться спать";
+"bedtime.header" = "Если вы хотите проснуться в %@";
+"bedtime.datepicker_title" = "Выберите время, в которое вы хотите проснуться:";
+
+// SettingsView
+"settings.title" = "Настройки";
+"settings.section.sleep_details" = "Детали сна";
+"settings.time_to_fall_asleep" = "Время на засыпание";
+"settings.sleep_cycle_length" = "Длительность цикла сна";
+"settings.minute" = "%d мин";
+"settings.section.wake_up" = "Пробуждение";
+"settings.wake_up_time" = "Время пробуждения";
+"settings.section.reminders" = "Напоминания";
+"settings.bedtime_auto_reminders" = "Автоматические напоминания о времени сна";
+"settings.done" = "Готово"; 
