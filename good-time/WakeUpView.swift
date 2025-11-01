@@ -6,7 +6,9 @@ struct WakeUpView: View {
     // Helper to format time
     func formattedTime(from date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm a"
+        formatter.locale = .autoupdatingCurrent
+        formatter.timeStyle = .short
+        formatter.dateStyle = .none
         return formatter.string(from: date)
     }
     
@@ -86,5 +88,7 @@ struct WakeUpView: View {
                 }
             }
         }
+        .navigationViewStyle(.stack)
     }
 } 
+

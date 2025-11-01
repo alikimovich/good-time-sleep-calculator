@@ -6,7 +6,9 @@ struct BedTimeView: View {
     // Helper to format time
     func formattedTime(from date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm a"
+        formatter.locale = .autoupdatingCurrent
+        formatter.timeStyle = .short
+        formatter.dateStyle = .none
         return formatter.string(from: date)
     }
     // Calculate bed times
@@ -80,6 +82,7 @@ struct BedTimeView: View {
                     }
                 }
             }
+            .navigationViewStyle(.stack)
         }
     }
 } 
