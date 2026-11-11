@@ -60,6 +60,9 @@ test "a new wake-up time on Bed Time moves the bed times and is kept"
 
 test "settings change the math, on both tabs, and are kept"
   tap "intro-continue"
+  // The intro leaves over 240 ms; on macOS its hidden bar holds the toolbar (and Wake Up's
+  // settings button) until it has gone.
+  clock settle
   tap "wakeup-settings"
   clock settle
   expect tree has "settings"

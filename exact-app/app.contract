@@ -23,15 +23,13 @@ shape Media
 
 // Motion (LKM-651). Every animation and transition below is gated on `still` (the system's
 // Reduce Motion): with it on, the screens change and the controls move without motion.
-// A screen's content rising into place: the Wake Up screen after the intro, a time row.
+// A time row rising into place. (Screens and the tab bar don't rise in: an entrance that holds
+// a tap target's first frame moves it off screen or hides it until the clock moves.)
 keyframes rise
   from opacity=0 translate="0px 14px"
 // The intro leaving: it fades and drifts left, the way the arrow and the swipe point.
 keyframes introLeave
   to opacity=0 translate="-48px 0px" animation-timing-function="ease-in"
-// The tab bar arriving from below once the intro has gone.
-keyframes barRise
-  from opacity=0 translate="0px 24px"
 // "the best time to wake up" landing beside its time.
 keyframes badgePop
   from opacity=0 scale=0.6
@@ -122,7 +120,6 @@ component GoodTime
                 else
                   column navigationKey=`${e.id}` navigationScroll=`content-${e.id}` position="absolute" inset=0
                     display="flex" flex-direction="column" background-color="gt.background"
-                    animation=(still ? "none" : "rise 420ms 80ms cubic-bezier(0.2, 0.8, 0.2, 1) both")
                     header display="flex" align-items="center"
                       text t("wakeup.title") role="heading" aria-level=1 flex=1
                       button press=openSettings aria-label=t("settings.title") testId="wakeup-settings"
@@ -187,7 +184,6 @@ component GoodTime
                         input type="time" value=wakeUpTime change=setWakeUp aria-label=t("settings.wake_up_time")
                           testId="settings-wake"
       row role="tablist" display=(showIntro ? "none" : "flex")
-        animation=(still or showIntro ? "none" : "barRise 420ms 120ms cubic-bezier(0.2, 0.8, 0.2, 1) both")
         button role="tab" aria-controls="panel-wakeup" aria-selected=(nav.tab == "wakeup") press=pick("wakeup")
           testId="tab-wakeup" flex=1
           :active
