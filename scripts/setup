@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# LKM-648: installs the Exact toolchain and puts the Exact checkout at the pinned commit. Idempotent: a machine
+# that already has everything finishes in seconds and changes nothing.
+#   scripts/setup
+# This is the Forge `setup` command for the good-time project. It may use the network on a first run.
+#   1. rustup (https://rustup.rs), without touching shell profiles.
+#   2. Bun 1.4.2 in ~/.bun-1.4.2 (EXACT_BUN_HOME), beside the default Bun.
+#   3. https://github.com/expo/exact cloned to ~/dev/exact (EXACT_DIR) and checked out, detached, at exact.pin.
+#      A checkout with local changes is never touched; the script stops and says so.
+#   4. `bun scripts/exact.mjs setup` in that checkout, only when `setup --check` fails: pinned Rust toolchains,
+#      wasm-bindgen, Binaryen, node_modules, Playwright's Chromium and the Hermes bundles (aarch64-apple-darwin
+#      and the iOS device/Simulator targets).
+set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+
+require git "Install the Xcode command line tools."
+require curl "Install curl."
+
+step "rustup"
+if ! command -v rustup >/dev/null 2>&1; then
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path --default-toolchain stable --profile minimal
+fi
+rustup --version 2>/dev/null | head -1
+
+step "Bun $BUN_VERSION in $BUN_HOME"
+if [[ ! -x "$BUN" || "$("$BUN" --version)" != "$BUN_VERSION" ]]; then
+  # The installer also prints a PATH hint; it edits a shell profile only when the profile lacks a Bun line,
+  # so keep it from touching any (SHELL=/bin/sh has no profile it writes).
+  curl -fsSL https://bun.sh/install | SHELL=/bin/sh BUN_INSTALL="$BUN_HOME" bash -s "bun-v$BUN_VERSION"
+fi
+"$BUN" --version
+
+step "Exact checkout $EXACT_DIR at $EXACT_PIN"
+if [[ ! -d "$EXACT_DIR/.git" ]]; then
+  [[ -e "$EXACT_DIR" ]] && fail "$EXACT_DIR exists and is not a git checkout; move it or set EXACT_DIR."
+  git clone "$EXACT_REPO_URL" "$EXACT_DIR"
+fi
+if [[ "$(exact_head)" != "$EXACT_PIN" ]]; then
+  if [[ -n "$(git -C "$EXACT_DIR" status --porcelain --untracked-files=no)" ]]; then
+    fail "$EXACT_DIR has local changes and is at $(exact_head), not $EXACT_PIN. Commit or set them aside, then rerun."
+  fi
+  git -C "$EXACT_DIR" cat-file -e "$EXACT_PIN^{commit}" 2>/dev/null || git -C "$EXACT_DIR" fetch --quiet origin
+  git -C "$EXACT_DIR" -c advice.detachedHead=false checkout --quiet --detach "$EXACT_PIN"
+fi
+echo "HEAD $(exact_head)"
+
+step "bun scripts/exact.mjs setup"
+cd "$EXACT_DIR"
+if "$BUN" scripts/exact.mjs setup --check >/dev/null 2>&1; then
+  echo "setup --check already passes; nothing to install."
+else
+  # On a cold machine `setup` can end non-zero though it installed everything: its closing report resolves
+  # Playwright's Chromium before `bun install` wrote node_modules (seen 2026-11-11 at c582b3b). The separate
+  # `setup --check` below is the verdict.
+  "$BUN" scripts/exact.mjs setup || echo "exact setup exited non-zero; checking what it left"
+  "$BUN" scripts/exact.mjs setup --check
+fi
+
+step "setup done"

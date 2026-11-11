@@ -1,0 +1,28 @@
+{
+  "$schema": "../../exact/scripts/app.schema.json",
+  "name": "Good Time",
+  "short_name": "Good Time",
+  "id": "com.alikimovich.good-time-to-sleep",
+  "start_url": "/",
+  "display": "standalone",
+  "app": {
+    "id": "com.alikimovich.good-time-to-sleep",
+    "name": "Good Time"
+  },
+  "host": {
+    "web": {},
+    "ios": {
+      "minimumOS": "17.0",
+      "deviceFamily": [
+        "iphone",
+        "ipad"
+      ]
+    }
+  },
+  "deploy": {
+    "store": {
+      "web": "0",
+      "ios": "0"
+    }
+  }
+}
