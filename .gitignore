@@ -1,0 +1,4 @@
+# fastlane's own outputs (LKM-650)
+fastlane/report.xml
+fastlane/README.md
+fastlane/test_output/
