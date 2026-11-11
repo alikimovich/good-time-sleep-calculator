@@ -1,7 +1,125 @@
-test "the greeting loads"
-  expect tree has "root"
-  expect text "greeting" == "Hello from Good Time."
+epoch "2026-03-15T22:00:00Z"
+time-zone "UTC"
+locale "en-US"
 
-test "the header's button likes it"
-  tap "like"
-  expect state liked == true
+test "the intro shows at first launch, its arrow moves on, and it stays gone"
+  expect tree has "intro"
+  expect text "intro-title" == "A good night\nconsists of 5-6\ncomplete sleep\ncycles"
+  expect tree missing "wakeup-header"
+  tap "intro-continue"
+  clock data
+  expect tree missing "intro"
+  expect text "wakeup-header" == "Going to bed? Try to wake up at one of these times to feel better next morning"
+  reload
+  clock data
+  expect tree missing "intro"
+  expect tree has "wakeup-header"
+
+test "wake-up times: 15 minutes to fall asleep, then 3 to 6 cycles of 90 minutes"
+  tap "intro-continue"
+  clock data
+  expect text "wake-3-cycles" == "3 CYCLES"
+  expect text "wake-3-time" == "2:45 AM"
+  expect text "wake-4-time" == "4:15 AM"
+  expect text "wake-5-time" == "5:45 AM"
+  expect text "wake-6-time" == "7:15 AM"
+  expect text "wake-best" == "the best time to wake up"
+  expect state times.wake.0 .progress == 0.5
+  expect state times.wake.3 .progress == 1
+
+test "wake-up times follow the clock"
+  tap "intro-continue"
+  clock data
+  clock +60000
+  clock data
+  expect text "wake-3-time" == "2:46 AM"
+
+test "bed times: waking at 8:00, the default, 6 cycles first"
+  tap "intro-continue"
+  tap "tab-bedtime"
+  clock data
+  expect text "bedtime-header" == "If you want to wake up at 8:00 AM"
+  expect text "bed-6-time" == "10:45 PM"
+  expect text "bed-5-time" == "12:15 AM"
+  expect text "bed-4-time" == "1:45 AM"
+  expect text "bed-3-time" == "3:15 AM"
+  expect tree missing "bed-best"
+
+test "a new wake-up time on Bed Time moves the bed times and is kept"
+  tap "intro-continue"
+  tap "tab-bedtime"
+  type "bedtime-wake" "06:30"
+  clock data
+  expect text "bedtime-header" == "If you want to wake up at 6:30 AM"
+  expect text "bed-6-time" == "9:15 PM"
+  reload
+  clock data
+  tap "tab-bedtime"
+  clock data
+  expect text "bed-3-time" == "1:45 AM"
+
+test "settings change the math, on both tabs, and are kept"
+  tap "intro-continue"
+  tap "wakeup-settings"
+  clock settle
+  expect tree has "settings"
+  type "fall-asleep" "30"
+  type "cycle-length" "100"
+  type "settings-wake" "07:00"
+  expect state timeToFallAsleep == 30
+  expect state sleepCycleLength == 100
+  back
+  clock settle
+  clock data
+  expect text "wake-3-time" == "3:30 AM"
+  expect text "wake-6-time" == "8:30 AM"
+  tap "tab-bedtime"
+  clock data
+  expect text "bed-6-time" == "8:30 PM"
+  expect text "bed-3-time" == "1:30 AM"
+  reload
+  clock data
+  expect state timeToFallAsleep == 30
+  expect state sleepCycleLength == 100
+  expect state wakeUpTime == "07:00"
+
+test "Bed Time opens Settings too"
+  tap "intro-continue"
+  tap "tab-bedtime"
+  tap "bedtime-settings"
+  clock settle
+  expect tree has "settings"
+  expect state nav.tab == "bedtime"
+
+test "a swipe to the left moves past the intro"
+  tap "intro-swipe" drag -160 0
+  clock settle
+  clock data
+  expect tree missing "intro"
+  expect tree has "wakeup-header"
+
+test "Spanish: the strings and the region's time"
+  locale "es-ES"
+  expect text "intro-subtitle" == "Si te acuestas ahora, intenta despertarte a una de estas horas"
+  tap "intro-continue"
+  clock data
+  expect text "wakeup-header" == "¿Te vas a la cama? Intenta despertarte a una de estas horas para sentirte mejor mañana"
+  expect text "wake-5-cycles" == "5 CICLOS"
+  expect text "wake-best" == "la mejor hora para despertar"
+  expect text "wake-5-time" == "5:45"
+  tap "tab-bedtime"
+  clock data
+  expect text "bedtime-header" == "Si quieres despertar a las 8:00"
+
+test "Russian: the strings and a 24-hour clock"
+  locale "ru-RU"
+  expect text "intro-title" == "Чтобы выспаться, необходимо спать 5-6 циклов сна"
+  tap "intro-continue"
+  clock data
+  expect text "wake-5-cycles" == "5 ↻"
+  expect text "wake-best" == "лучшее время"
+  expect text "wake-6-time" == "07:15"
+  tap "tab-bedtime"
+  clock data
+  expect text "bedtime-header" == "Чтобы легче проснуться в 08:00"
+  expect text "bed-6-time" == "22:45"

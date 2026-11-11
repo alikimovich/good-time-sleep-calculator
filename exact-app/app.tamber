@@ -1,0 +1,18 @@
+tamber good-time
+
+// The SwiftUI app's asset catalog colours (good-time/Assets.xcassets), light and dark.
+theme
+  AccentColor = light-dark(#738ee3, #90e0d1)
+  gt.background = light-dark(#f3f3f4, #14110f)
+  gt.card = light-dark(#e2e2e3, #272422)
+  gt.highlight = light-dark(#13110f, #d9c5b1)  pair=gt.background
+  gt.text1 = light-dark(#14110f, #f3f3f4)  pair=gt.background
+  gt.text2 = light-dark(#2c2927, #dbdbdc)  pair=gt.background
+  gt.text3 = light-dark(#43413f, #c2c2c3)  pair=gt.background
+  gt.text4 = light-dark(#6e6c6a, #929292)  pair=gt.background
+  gt.disabled = light-dark(#e9e9ea, #2c2927)
+
+icons
+  icon.sunrise = icon(sf "sunrise.fill", svg "icons/sunrise.svg")
+  icon.bedtime = icon(sf "moon.zzz.fill", svg "icons/moon-zzz.svg")
+  icon.settings = icon(sf "gearshape.fill", svg "icons/gear.svg")

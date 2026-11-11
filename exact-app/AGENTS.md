@@ -28,3 +28,17 @@ command confused you, record it: `bun exact.mjs feedback note "<what happened>"`
 exact2's commit and the last exit code, never output or code. `bun exact.mjs feedback status` says
 whether notes are sent and whether to keep a diary; under `never`, skip all of this.
 <!-- exact:end -->
+
+## Good Time (LKM-649)
+
+The port of the SwiftUI app in `../good-time/`. Screenshots of both: `../docs/screenshots/LKM-649/`.
+
+| File | Holds |
+| --- | --- |
+| `app.contract` | The view: the intro (shown until the arrow or a left swipe; `showIntro`, persisted), the Wake Up and Bed Time tabs, Settings (pushed from either tab). Settings are root `state … persist`, under the SwiftUI app's `@AppStorage` names. |
+| `app.ts` | The sleep-cycle math, as the Swift views do it: `wakeUpTimes`, `bedTimes`, `progressPercentage`, `wakeUpInstant`, and `formatClock` (DateFormatter's `.short` time, via `Intl`'s `timeStyle: 'short'`). The `schedule` source answers both tabs' rows. |
+| `app.tamber` | The asset catalog's colours (`gt.*`, light and dark), the accent, and the tab and settings icons (SF Symbols on Apple, `assets/icons/*.svg` elsewhere). |
+| `strings/{en,es,ru}.json` | The `Localizable.strings`, with `%d`/`%@` as `{count}`/`{time}`. |
+| `assets/icon-1024.png` | The app icon (`AppIcon.appiconset`). |
+| `tools/sleep.test.ts` | Unit tests of the math: `bun test tools/`. |
+| `app.test.contract` | The Contract tests, run on the web, macOS and the iOS Simulator by `../scripts/check`. |
