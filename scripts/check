@@ -1,19 +1,21 @@
 #!/usr/bin/env bash
-# LKM-648: the project check. Builds the Exact app in exact-app/ and runs its Contract tests on the web, then on an
-# iOS Simulator.
-#   scripts/check            # web and iOS Simulator
+# LKM-648, LKM-649: the project check. Builds the Exact app in exact-app/, runs the unit tests of its math
+# (exact-app/tools/*.test.ts), then its Contract tests on the web, macOS and an iOS Simulator.
+#   scripts/check            # web, macOS and iOS Simulator
 #   scripts/check --web      # web only (about 15 s once the toolchain is built)
 # This is the Forge `check` command for the good-time project. It installs nothing: run scripts/setup first.
 # iOS uses its own simulator, "Good Time Check" (created and booted on first use), and a Cargo target shared by
 # every worktree ($IOS_TARGET_DIR), so only the first iOS build on this Mac is cold (about 13 minutes);
-# later ones take a minute or two. GOOD_TIME_CHECK_IOS=0 skips iOS as --web does.
+# later ones take a minute or two. macOS builds into the same target (its first build about 5 minutes).
+# GOOD_TIME_CHECK_IOS=0 skips iOS, GOOD_TIME_CHECK_MACOS=0 skips macOS; --web skips both.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 ios="${GOOD_TIME_CHECK_IOS:-1}"
+macos="${GOOD_TIME_CHECK_MACOS:-1}"
 for arg in "$@"; do
   case "$arg" in
-    --web) ios=0 ;;
+    --web) ios=0; macos=0 ;;
     *) fail "unknown argument '$arg'. Usage: scripts/check [--web]" ;;
   esac
 done
@@ -31,7 +33,7 @@ git -C "$ROOT" diff --check HEAD
 
 cd "$APP_DIR"
 
-step "Contract: compile app.contract and type-check app.ts"
+step "Contract: compile app.contract"
 # app.contract.d.ts is generated (gitignored); a fresh worktree has none until this writes it.
 bun exact.mjs contract types app.contract -o app.contract.d.ts
 errors="$(bun exact.mjs contract build app.contract --json --errors-only)"
@@ -41,10 +43,26 @@ if [[ "$(echo "$errors" | tr -d '[:space:]')" != "[]" ]]; then
 fi
 echo "no errors"
 
+step "TypeScript: type-check app.ts and the unit tests (Exact's pinned tsc and build options)"
+# contract build does not type-check app.ts; Exact's builds do, but this fails fast and also covers tools/*.test.ts.
+bun tools/typecheck.mjs
+
+step "Unit: app.ts's sleep-cycle math (bun test tools/)"
+bun test tools/
+
 step "Web: build and run the Contract tests"
 t=$(date +%s)
 bun exact.mjs test web
 echo "web: $(since "$t") s"
+
+if [[ "$macos" == "1" ]]; then
+  step "macOS: build and run the Contract tests"
+  t=$(date +%s)
+  CARGO_TARGET_DIR="$IOS_TARGET_DIR" bun exact.mjs test macos
+  echo "macOS: $(since "$t") s"
+else
+  echo "==> macOS skipped (--web or GOOD_TIME_CHECK_MACOS=0)"
+fi
 
 if [[ "$ios" == "1" ]]; then
   step "iOS Simulator ($SIM_NAME): build and run the Contract tests"

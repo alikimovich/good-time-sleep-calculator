@@ -37,7 +37,7 @@ GPU canvases). Without it they fall back to Core Image and Core Graphics, which 
 | `scripts/setup` | **The Forge setup command.** Idempotent: installs rustup and Bun 1.4.2 if missing, clones Exact to `~/dev/exact` if missing, checks out `exact.pin` (refuses if the checkout has local changes), and runs `bun scripts/exact.mjs setup` only when `setup --check` fails. | 50 s when everything is present; ~15 min cold |
 | `scripts/update-exact-pin [<commit>]` | Moves the Exact pin; see below. | |
 | `scripts/doctor` | Checks the toolchain and changes nothing: Xcode, rustup, Cargo, Bun 1.4.2, the Exact pin, Exact's `setup --check` and `exact-app/`. Names the fix for each gap. | ~30 s |
-| `scripts/check` | **The Forge check command.** Doctor, `git diff --check`, compiles `app.contract` and type-checks `app.ts`, then builds the app and runs its Contract tests on the web (headless Chromium) and on the iOS Simulator `Good Time Check` (created on first use). `--web` (or `GOOD_TIME_CHECK_IOS=0`) skips iOS. | 2 min warm; see Check timings |
+| `scripts/check` | **The Forge check command.** Doctor, `git diff --check`, compiles `app.contract`, type-checks `app.ts` and the unit tests with Exact's pinned `tsc` and build options (`bun tools/typecheck.mjs`), runs the math's unit tests (`bun test tools/`), then builds the app and runs its Contract tests on the web (headless Chromium), on macOS, and on the iOS Simulator `Good Time Check` (created on first use). `--web` skips both native hosts; `GOOD_TIME_CHECK_IOS=0` or `GOOD_TIME_CHECK_MACOS=0` skips one. | ~2 min warm; see Check timings |
 
 The iOS step builds into a Cargo target shared by every worktree, `~/.cache/good-time/exact-target`
 (`GOOD_TIME_IOS_TARGET` overrides). Only the first iOS build on a Mac is cold. A fresh Forge worktree reuses the
@@ -53,6 +53,9 @@ bun exact.mjs contract types app.contract -o app.contract.d.ts   # the types app
 bun exact.mjs contract build app.contract --json --errors-only   # [] means no errors
 bun exact.mjs web                  # the dev loop at http://127.0.0.1:8765/, rebuilds on save
 bun exact.mjs test web             # Contract tests on the web
+bun test tools/                    # unit tests of app.ts's sleep-cycle math
+bun tools/typecheck.mjs            # tsc on app.ts and tools/*.test.ts, Exact's strict build options
+CARGO_TARGET_DIR=~/.cache/good-time/exact-target bun exact.mjs test macos   # Contract tests on macOS
 EXACT_SIM="Good Time Check" bun exact.mjs test ios   # Contract tests on the iOS Simulator
 bun exact.mjs verify               # tests, plus checks light/dark, two widths, the largest text size
 bun exact.mjs ios --run            # launch on a simulator for a person to watch
@@ -92,6 +95,7 @@ Measured on this Mac (Apple Silicon, Xcode 27.2) on 2026-11-11, Exact at `c582b3
 | `scripts/check`, very first iOS build on the Mac | ~9 min (iOS 471 s after an earlier cold build had compiled Exact's tools; a truly cold first iOS build is ~13 min) |
 | `scripts/check` in a fresh Forge worktree, shared iOS target warm | **123 s**: doctor ~30 s, web tests 6 s, iOS build and tests 61 s |
 | `scripts/check --web` | ~32 s |
+| `scripts/check` with the port (LKM-649), warm | 131 s: web 19 s, macOS 41 s, iOS 38 s (macOS's first build ~5 min) |
 
 Forge's `check_timeout_minutes` should be 30 or more, which leaves room for a cold iOS build after the pin moves.
 

@@ -1,24 +1,173 @@
-// Good Time: the view. app.ts answers what it asks for. Colours, fonts,
-// sizes and the safe area are left unsaid, so each platform supplies its own:
-// the header is the navigation bar, its heading the title, its button a bar item.
-shape Greeting
-  text: string
+// Good Time: the view. app.ts does the sleep-cycle math and writes the times.
+// Ported from the SwiftUI app in ../good-time: an intro shown until the person moves on,
+// then two tabs (Wake Up, Bed Time), each pushing Settings. Colours are the asset catalog's,
+// in app.tamber; strings are good-time/*.lproj's, in strings/.
+shape Time
+  epochAtZero: number
+  utcOffset: number
+  formatLocale: string
+  timeZone: string
+
+shape Row
+  cycles: number
+  time: string
+  progress: number
+
+shape Schedule
+  wakeUpTime: string
+  wake: Row[]
+  bed: Row[]
 
 routes nav
-  home "/"
+  tab wakeup "/"
+    settings "/settings"
+  tab bedtime "/bedtime"
 
-component ExactApp
-  resource greeting = greeting("Good Time") as shape Greeting
-  state liked = false
-  action like
-    liked = not liked
+// The colour of a row's time: 6 cycles is TextColor1, 3 cycles TextColor4 (`Color("TextColor\(7 - cycles)")`).
+fn tone(cycles: number): string = `gt.text${7 - cycles}`
+
+component GoodTime
+  state showIntro = true persist
+  state timeToFallAsleep = 15 persist
+  state sleepCycleLength = 90 persist
+  state wakeUpTime = "08:00" persist
+  state bedtimeAutoReminders = false persist
+  state now = 0
+  resource time = exactTime() as shape Time
+  // The clock goes after `with`: it reaches app.ts but does not identify the answer, so a launch
+  // shows the last answer at once and replaces it when app.ts answers for now.
+  resource times = schedule(time.utcOffset, wakeUpTime, timeToFallAsleep, sleepCycleLength,
+    time.formatLocale, time.timeZone) with time.epochAtZero + now as shape Schedule
+
+  task tick mount
+    every(30000, step)
+  action step
+    now = performanceNow()
+
+  action begin
+    showIntro = false
+    now = performanceNow()
+  action pick(name: string)
+    nav = select(nav, name)
+  action follow(url: string)
+    nav = go(nav, url)
+  action back
+    nav = back(nav)
+  action openSettings
+    nav = push(nav, path("settings"))
+  action setFallAsleep(v: string)
+    timeToFallAsleep = match parseNumber(v) { case some(n) => n, case none => timeToFallAsleep }
+  action setCycle(v: string)
+    sleepCycleLength = match parseNumber(v) { case some(n) => n, case none => sleepCycleLength }
+  action setWakeUp(v: string)
+    if v != ""
+      wakeUpTime = v
+
   view
-    main testId="root" navigationKey=`${top(nav).id}` navigationBack="back" width="100%" height="100%"
-      for e in stack(nav) key=e.id
-        column navigationKey=`${e.id}` navigationScroll="content" position="absolute" inset=0 display="flex" flex-direction="column"
-          header display="flex" align-items="center"
-            text "Good Time" role="heading" aria-level=1 flex=1
-            button press=like aria-label=(liked ? "Unlike" : "Like") testId="like"
-              image (liked ? "symbol:heart-fill" : "symbol:heart")
-          scroll id="content" flex=1 min-height=0 padding=16
-            text greeting.text testId="greeting"
+    main navigationKey=`${top(nav).id}` navigationBack="back" navigate=follow testId="root"
+      width="100%" height="100%" display="flex" flex-direction="column" background-color="gt.background"
+      column flex=1 min-height=0 position="relative"
+        for tb in nav.tabs key=tb.name
+          column role="tabpanel" id=`panel-${tb.name}` position="absolute" inset=0
+            for e in tb.stack key=e.id
+              if e.name == "wakeup"
+                if showIntro
+                  column navigationKey=`${e.id}` navigationBar="none" position="absolute" inset=0
+                    background-color="gt.background" testId="intro"
+                    scroll flex=1 min-height=0
+                      column swipeleft=begin touch-action="pan-y" max-width="25.875rem" testId="intro-swipe" padding="40px 32px" gap=60
+                        box-sizing="border-box"
+                        text t("intro.title") font-family="ui-serif, serif" font-size="2.5rem" line-height=1.37
+                          white-space="pre-line" overflow-wrap="break-word" color="gt.highlight" role="heading" aria-level=1 testId="intro-title"
+                        column gap=30 align-items="flex-start"
+                          text t("intro.subtitle") font-family="ui-serif, serif" font-size="2.5rem" line-height=1.32
+                            color="gt.highlight" testId="intro-subtitle"
+                          button press=begin appearance="none" aria-label=t("intro.continue") testId="intro-continue"
+                            text "⟼" font-family="ui-serif, serif" font-size="4rem" color="gt.highlight" aria-hidden=true
+                else
+                  column navigationKey=`${e.id}` navigationScroll=`content-${e.id}` position="absolute" inset=0
+                    display="flex" flex-direction="column" background-color="gt.background"
+                    header display="flex" align-items="center"
+                      text t("wakeup.title") role="heading" aria-level=1 flex=1
+                      button press=openSettings aria-label=t("settings.title") testId="wakeup-settings"
+                        image "symbol:icon.settings"
+                    scroll id=`content-${e.id}` flex=1 min-height=0
+                      column padding-bottom=32
+                        text t("wakeup.header") font-size="1.125rem" color="gt.highlight" padding="0px 16px 16px"
+                          testId="wakeup-header"
+                        Times(rows=times.wake, best=true, prefix="wake")
+                        text t("wakeup.footer") font-size="1rem" color="gt.text2" padding=16 margin="16px 16px 0px"
+                          background-color="gt.card" border-radius=20 testId="wakeup-footer"
+              if e.name == "bedtime"
+                column navigationKey=`${e.id}` navigationScroll=`content-${e.id}` position="absolute" inset=0
+                  display="flex" flex-direction="column" background-color="gt.background"
+                  header display="flex" align-items="center"
+                    text t("bedtime.title") role="heading" aria-level=1 flex=1
+                    button press=openSettings aria-label=t("settings.title") testId="bedtime-settings"
+                      image "symbol:icon.settings"
+                  scroll id=`content-${e.id}` flex=1 min-height=0
+                    column padding-bottom=16
+                      text t("bedtime.header", time=times.wakeUpTime) font-size="1.125rem" color="gt.highlight"
+                        padding="0px 16px 16px" testId="bedtime-header"
+                      Times(rows=times.bed, best=false, prefix="bed")
+                      row align-items="center" justify-content="space-between" gap=12 padding="16px 16px 0px"
+                        flex-wrap="wrap"
+                        text t("bedtime.datepicker_title") color="gt.text3" flex="1 1 12rem" min-width=0
+                        input type="time" value=wakeUpTime change=setWakeUp aria-label=t("bedtime.datepicker_title")
+                          testId="bedtime-wake"
+              if e.name == "settings"
+                column navigationKey=`${e.id}` navigationScroll=`form-${e.id}` position="absolute" inset=0
+                  display="flex" flex-direction="column"
+                  header
+                    text t("settings.title") role="heading" aria-level=1
+                  list id=`form-${e.id}` appearance="auto" listStyle="inset-grouped" flex=1 min-height=0 testId="settings"
+                    section
+                      header
+                        text t("settings.section.sleep_details")
+                      row
+                        text t("settings.time_to_fall_asleep")
+                        select value=`${timeToFallAsleep}` change=setFallAsleep
+                          aria-label=t("settings.time_to_fall_asleep") testId="fall-asleep"
+                          for m in range(12).map(i => 5 + i * 5) key=m
+                            option t("settings.minute", count=`${m}`) value=`${m}`
+                      row
+                        text t("settings.sleep_cycle_length")
+                        select value=`${sleepCycleLength}` change=setCycle
+                          aria-label=t("settings.sleep_cycle_length") testId="cycle-length"
+                          for m in range(11).map(i => 70 + i * 5) key=m
+                            option t("settings.minute", count=`${m}`) value=`${m}`
+                    section
+                      header
+                        text t("settings.section.wake_up")
+                      row
+                        text t("settings.wake_up_time")
+                        input type="time" value=wakeUpTime change=setWakeUp aria-label=t("settings.wake_up_time")
+                          testId="settings-wake"
+      row role="tablist" display=(showIntro ? "none" : "flex")
+        button role="tab" aria-controls="panel-wakeup" aria-selected=(nav.tab == "wakeup") press=pick("wakeup")
+          testId="tab-wakeup" flex=1
+          image "symbol:icon.sunrise"
+          text t("tab.wakeup")
+        button role="tab" aria-controls="panel-bedtime" aria-selected=(nav.tab == "bedtime") press=pick("bedtime")
+          testId="tab-bedtime" flex=1
+          image "symbol:icon.bedtime"
+          text t("tab.bedtime")
+
+component Times
+  props
+    rows: Row[]
+    best: bool
+    prefix: string
+  view
+    column
+      for r in rows key=r.cycles
+        column padding="8px 16px" testId=`${prefix}-${r.cycles}`
+          text t("wakeup.cycles", count=`${r.cycles}`) font-size="0.875rem" font-weight=600 color="gt.text4"
+            testId=`${prefix}-${r.cycles}-cycles`
+          row align-items="baseline" flex-wrap="wrap" column-gap=8
+            text r.time font="-exact-title1" font-weight=700 color=tone(r.cycles) testId=`${prefix}-${r.cycles}-time`
+            if best and r.cycles == 5
+              text t("wakeup.best_time") font-family="ui-serif, serif" font-style="italic" font-size="1.125rem"
+                color="gt.highlight" testId=`${prefix}-best`
+          progress value=r.progress accent-color=tone(r.cycles) margin="8px 0px" width="100%"
+            aria-label=t("wakeup.cycles", count=`${r.cycles}`)
