@@ -60,6 +60,9 @@ test "a new wake-up time on Bed Time moves the bed times and is kept"
 
 test "settings change the math, on both tabs, and are kept"
   tap "intro-continue"
+  // The intro leaves over 240 ms; on macOS its hidden bar holds the toolbar (and Wake Up's
+  // settings button) until it has gone.
+  clock settle
   tap "wakeup-settings"
   clock settle
   expect tree has "settings"
@@ -123,3 +126,33 @@ test "Russian: the strings and a 24-hour clock"
   clock data
   expect text "bedtime-header" == "Чтобы легче проснуться в 08:00"
   expect text "bed-6-time" == "22:45"
+
+test "motion: a picked wake-up time springs the picker and settles; the screens settle in place"
+  tap "intro-continue"
+  clock settle
+  expect state still == false
+  expect tree missing "intro"
+  tap "tab-bedtime"
+  clock settle
+  expect state nav.tab == "bedtime"
+  type "bedtime-wake" "06:30"
+  expect state bumping == true
+  clock +200
+  expect state bumping == false
+  clock settle
+  clock data
+  expect text "bed-6-time" == "9:15 PM"
+  expect text "bedtime-header" == "If you want to wake up at 6:30 AM"
+
+test "reduced motion: nothing springs, and the app works the same"
+  prefer prefers-reduced-motion reduce
+  expect state still == true
+  tap "intro-continue"
+  clock data
+  expect tree missing "intro"
+  expect tree has "wakeup-header"
+  tap "tab-bedtime"
+  type "bedtime-wake" "06:30"
+  expect state bumping == false
+  clock data
+  expect text "bed-6-time" == "9:15 PM"

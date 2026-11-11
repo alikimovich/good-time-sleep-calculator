@@ -43,3 +43,20 @@ The port of the SwiftUI app in `../good-time/`. Screenshots of both: `../docs/sc
 | `tools/sleep.test.ts` | Unit tests of the math: `bun test tools/`. |
 | `tools/typecheck.mjs`, `tools/bun-test.d.ts` | `tsc` on `app.ts` and the unit tests, with Exact's pinned TypeScript and its build's strict options: `bun tools/typecheck.mjs`. |
 | `app.test.contract` | The Contract tests, run on the web, macOS and the iOS Simulator by `../scripts/check`. |
+
+## Motion (LKM-651)
+
+Everything that moves is in `app.contract` and is gated on `still` (`exactViewport().prefersReducedMotion`, the
+system's Reduce Motion): with it on, every `animation`, `transition`, exit and press scale is `none`/1.
+
+| What | How |
+| --- | --- |
+| Intro → Wake Up | The intro leaves with `-exact-exit-animation` (`introLeave`: fade, drift left; filmed on the web; on iOS the intro and Wake Up share one route, which swaps at once), then Wake Up's time rows rise in. The screen and the tab bar themselves don't animate in: an entrance that holds its first frame left the tab bar off screen and the settings button hidden until the clock moved (macOS tests). |
+| Time rows | Each row rises in with a 70 ms stagger; "the best time to wake up" pops in (`badgePop`). Bed Time's rows are keyed by their time too, so a picked wake-up time replays them; Wake Up's are not, since they follow the clock every minute. |
+| Tab change | The panel fades and springs up (`-exact-spring(320, 30, 1)`); the tab's icon springs larger where the tab bar is ours (web, macOS; iOS uses UIKit's tab bar). |
+| Time picker | A picked time sets `bumping` for 140 ms (task `unbump`): the picker and the Bed Time header spring to a slightly larger scale and back. |
+| Presses | `:active` `-exact-press-scale` on the intro arrow, the settings buttons and the tabs (where they are custom nodes). |
+
+Film a motion with the agent: `bun exact.mjs agent ios "tap intro-continue" "screenshot f.png over 600 every 50"`
+(add `"prefer prefers-reduced-motion reduce"` first for the reduced-motion version). The films are in
+`../docs/screenshots/LKM-651/`.

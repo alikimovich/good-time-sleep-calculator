@@ -18,6 +18,23 @@ shape Schedule
   wake: Row[]
   bed: Row[]
 
+shape Media
+  prefersReducedMotion: bool
+
+// Motion (LKM-651). Every animation and transition below is gated on `still` (the system's
+// Reduce Motion): with it on, the screens change and the controls move without motion.
+// A time row rising into place. (Screens and the tab bar don't rise in: an entrance that holds
+// a tap target's first frame moves it off screen or hides it until the clock moves.)
+keyframes rise
+  from opacity=0 translate="0px 14px"
+// The intro leaving: it fades and drifts left, the way the arrow and the swipe point.
+keyframes introLeave
+  to opacity=0 translate="-48px 0px" animation-timing-function="ease-in"
+// "the best time to wake up" landing beside its time.
+keyframes badgePop
+  from opacity=0 scale=0.6
+  60% opacity=1 scale=1.08
+
 routes nav
   tab wakeup "/"
     settings "/settings"
@@ -33,6 +50,11 @@ component GoodTime
   state wakeUpTime = "08:00" persist
   state bedtimeAutoReminders = false persist
   state now = 0
+  // A spring "bump" on a time picker and the times it moves, for a moment after a new time is picked.
+  state picked = 0
+  state bumping = false
+  resource media = exactViewport() as shape Media
+  derive still = media.prefersReducedMotion
   resource time = exactTime() as shape Time
   // The clock goes after `with`: it reaches app.ts but does not identify the answer, so a launch
   // shows the last answer at once and replaces it when app.ts answers for now.
@@ -43,6 +65,10 @@ component GoodTime
     every(30000, step)
   action step
     now = performanceNow()
+  task unbump when bumping key=picked
+    after(140, settle)
+  action settle
+    bumping = false
 
   action begin
     showIntro = false
@@ -62,6 +88,8 @@ component GoodTime
   action setWakeUp(v: string)
     if v != ""
       wakeUpTime = v
+      picked = picked + 1
+      bumping = not still
 
   view
     main navigationKey=`${top(nav).id}` navigationBack="back" navigate=follow testId="root"
@@ -69,11 +97,14 @@ component GoodTime
       column flex=1 min-height=0 position="relative"
         for tb in nav.tabs key=tb.name
           column role="tabpanel" id=`panel-${tb.name}` position="absolute" inset=0
+            opacity=(nav.tab == tb.name ? 1 : 0) translate=(nav.tab == tb.name ? "0px 0px" : "0px 12px")
+            transition=(still ? "none" : "opacity 220ms ease-out, translate -exact-spring(320, 30, 1)")
             for e in tb.stack key=e.id
               if e.name == "wakeup"
                 if showIntro
                   column navigationKey=`${e.id}` navigationBar="none" position="absolute" inset=0
                     background-color="gt.background" testId="intro"
+                    -exact-exit-animation=(still ? "none" : "introLeave 240ms ease-in both")
                     scroll flex=1 min-height=0
                       column swipeleft=begin touch-action="pan-y" max-width="25.875rem" testId="intro-swipe" padding="40px 32px" gap=60
                         box-sizing="border-box"
@@ -83,6 +114,8 @@ component GoodTime
                           text t("intro.subtitle") font-family="ui-serif, serif" font-size="2.5rem" line-height=1.32
                             color="gt.highlight" testId="intro-subtitle"
                           button press=begin appearance="none" aria-label=t("intro.continue") testId="intro-continue"
+                            :active
+                              -exact-press-scale=(still ? 1 : 0.88)
                             text "⟼" font-family="ui-serif, serif" font-size="4rem" color="gt.highlight" aria-hidden=true
                 else
                   column navigationKey=`${e.id}` navigationScroll=`content-${e.id}` position="absolute" inset=0
@@ -90,12 +123,14 @@ component GoodTime
                     header display="flex" align-items="center"
                       text t("wakeup.title") role="heading" aria-level=1 flex=1
                       button press=openSettings aria-label=t("settings.title") testId="wakeup-settings"
+                        :active
+                          -exact-press-scale=(still ? 1 : 0.85)
                         image "symbol:icon.settings"
                     scroll id=`content-${e.id}` flex=1 min-height=0
                       column padding-bottom=32
                         text t("wakeup.header") font-size="1.125rem" color="gt.highlight" padding="0px 16px 16px"
                           testId="wakeup-header"
-                        Times(rows=times.wake, best=true, prefix="wake")
+                        Times(rows=times.wake, best=true, prefix="wake", still=still, replay=false)
                         text t("wakeup.footer") font-size="1rem" color="gt.text2" padding=16 margin="16px 16px 0px"
                           background-color="gt.card" border-radius=20 testId="wakeup-footer"
               if e.name == "bedtime"
@@ -104,17 +139,22 @@ component GoodTime
                   header display="flex" align-items="center"
                     text t("bedtime.title") role="heading" aria-level=1 flex=1
                     button press=openSettings aria-label=t("settings.title") testId="bedtime-settings"
+                      :active
+                        -exact-press-scale=(still ? 1 : 0.85)
                       image "symbol:icon.settings"
                   scroll id=`content-${e.id}` flex=1 min-height=0
                     column padding-bottom=16
                       text t("bedtime.header", time=times.wakeUpTime) font-size="1.125rem" color="gt.highlight"
                         padding="0px 16px 16px" testId="bedtime-header"
-                      Times(rows=times.bed, best=false, prefix="bed")
+                        transform-origin="left center" scale=(bumping ? 1.04 : 1)
+                        transition=(still ? "none" : "scale -exact-spring(420, 18, 1)")
+                      Times(rows=times.bed, best=false, prefix="bed", still=still, replay=true)
                       row align-items="center" justify-content="space-between" gap=12 padding="16px 16px 0px"
                         flex-wrap="wrap"
                         text t("bedtime.datepicker_title") color="gt.text3" flex="1 1 12rem" min-width=0
                         input type="time" value=wakeUpTime change=setWakeUp aria-label=t("bedtime.datepicker_title")
-                          testId="bedtime-wake"
+                          testId="bedtime-wake" scale=(bumping ? 1.08 : 1)
+                          transition=(still ? "none" : "scale -exact-spring(420, 16, 1)")
               if e.name == "settings"
                 column navigationKey=`${e.id}` navigationScroll=`form-${e.id}` position="absolute" inset=0
                   display="flex" flex-direction="column"
@@ -146,11 +186,17 @@ component GoodTime
       row role="tablist" display=(showIntro ? "none" : "flex")
         button role="tab" aria-controls="panel-wakeup" aria-selected=(nav.tab == "wakeup") press=pick("wakeup")
           testId="tab-wakeup" flex=1
-          image "symbol:icon.sunrise"
+          :active
+            -exact-press-scale=(still ? 1 : 0.92)
+          image "symbol:icon.sunrise" scale=(nav.tab == "wakeup" ? 1.15 : 1)
+            transition=(still ? "none" : "scale -exact-spring(380, 20, 1)")
           text t("tab.wakeup")
         button role="tab" aria-controls="panel-bedtime" aria-selected=(nav.tab == "bedtime") press=pick("bedtime")
           testId="tab-bedtime" flex=1
-          image "symbol:icon.bedtime"
+          :active
+            -exact-press-scale=(still ? 1 : 0.92)
+          image "symbol:icon.bedtime" scale=(nav.tab == "bedtime" ? 1.15 : 1)
+            transition=(still ? "none" : "scale -exact-spring(380, 20, 1)")
           text t("tab.bedtime")
 
 component Times
@@ -158,10 +204,16 @@ component Times
     rows: Row[]
     best: bool
     prefix: string
+    // Reduce Motion is on: no row rises, no badge pops.
+    still: bool
+    // A row keyed by its time too, so a new time (a picked wake-up time) rises in again. Wake Up's
+    // times follow the clock every minute, so its rows rise once, when the screen appears.
+    replay: bool
   view
     column
-      for r in rows key=r.cycles
+      for r, i in rows key=(replay ? `${r.cycles}-${r.time}` : `${r.cycles}`)
         column padding="8px 16px" testId=`${prefix}-${r.cycles}`
+          animation=(still ? "none" : `rise 380ms ${120 + i * 70}ms cubic-bezier(0.2, 0.8, 0.2, 1) both`)
           text t("wakeup.cycles", count=`${r.cycles}`) font-size="0.875rem" font-weight=600 color="gt.text4"
             testId=`${prefix}-${r.cycles}-cycles`
           row align-items="baseline" flex-wrap="wrap" column-gap=8
@@ -169,5 +221,6 @@ component Times
             if best and r.cycles == 5
               text t("wakeup.best_time") font-family="ui-serif, serif" font-style="italic" font-size="1.125rem"
                 color="gt.highlight" testId=`${prefix}-best`
+                animation=(still ? "none" : "badgePop 520ms 480ms ease-out both")
           progress value=r.progress accent-color=tone(r.cycles) margin="8px 0px" width="100%"
             aria-label=t("wakeup.cycles", count=`${r.cycles}`)
