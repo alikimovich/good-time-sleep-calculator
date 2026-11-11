@@ -1,0 +1,558 @@
+{
+  "date": "2026-11-11",
+  "machine": {
+    "chip": "Apple M4 Pro",
+    "macOS": "27.0.1",
+    "xcode": "Xcode 27.2",
+    "simulator": "Good Time Perf: iPhone 17 Pro, com.apple.CoreSimulator.SimRuntime.iOS-27-2"
+  },
+  "commits": {
+    "goodTime": "f4ea06d",
+    "exact": "c582b3b"
+  },
+  "settings": {
+    "launches": 10,
+    "journeys": 3,
+    "rounds": 3
+  },
+  "swiftui": {
+    "launch": {
+      "firstAfterInstallMs": 417.8,
+      "processToFirstFrameMs": {
+        "n": 10,
+        "median": 355.2,
+        "min": 337.3,
+        "max": 364.1
+      },
+      "settledFootprintMB": {
+        "n": 10,
+        "median": 17.8,
+        "min": 17.6,
+        "max": 17.8
+      },
+      "layersAtFirstFrame": 8
+    },
+    "journey": {
+      "journeys": 3,
+      "touchesPerJourney": 13,
+      "periodMs": 16.7,
+      "motion": {
+        "frames": 2751,
+        "missedRefreshes": 138,
+        "longFrames": 54,
+        "missedPer100Frames": 5.02,
+        "medianMs": {
+          "n": 3,
+          "median": 16.7,
+          "min": 16.7,
+          "max": 16.7
+        },
+        "p95Ms": {
+          "n": 3,
+          "median": 16.7,
+          "min": 16.7,
+          "max": 16.7
+        },
+        "p99Ms": {
+          "n": 3,
+          "median": 42.7,
+          "min": 42.6,
+          "max": 42.8
+        },
+        "maxMs": {
+          "n": 3,
+          "median": 163,
+          "min": 162.5,
+          "max": 172.8
+        }
+      },
+      "idle": {
+        "frames": 4917,
+        "missedRefreshes": 43,
+        "maxMs": {
+          "n": 3,
+          "median": 71.7,
+          "min": 68.9,
+          "max": 84.6
+        }
+      },
+      "peakFootprintMB": {
+        "n": 3,
+        "median": 43.2,
+        "min": 43.1,
+        "max": 43.3
+      },
+      "raw": [
+        {
+          "footprintMB": 39.7,
+          "idle": {
+            "fps": 59.6,
+            "intervals": 1643,
+            "longFrames": 8,
+            "maxMs": 84.6,
+            "medianMs": 16.7,
+            "missedRefreshes": 12,
+            "p95Ms": 16.7,
+            "p99Ms": 16.7,
+            "seconds": 27.58
+          },
+          "kind": "frames",
+          "maxFps": 60,
+          "motion": {
+            "fps": 56.9,
+            "intervals": 914,
+            "longFrames": 21,
+            "maxMs": 172.8,
+            "medianMs": 16.7,
+            "missedRefreshes": 49,
+            "p95Ms": 16.7,
+            "p99Ms": 42.8,
+            "seconds": 16.05
+          },
+          "peakFootprintMB": 43.3,
+          "periodMs": 16.7,
+          "touches": 13,
+          "why": "background"
+        },
+        {
+          "footprintMB": 39.2,
+          "idle": {
+            "fps": 59.3,
+            "intervals": 1634,
+            "longFrames": 14,
+            "maxMs": 68.9,
+            "medianMs": 16.7,
+            "missedRefreshes": 18,
+            "p95Ms": 16.7,
+            "p99Ms": 16.7,
+            "seconds": 27.53
+          },
+          "kind": "frames",
+          "maxFps": 60,
+          "motion": {
+            "fps": 57.2,
+            "intervals": 918,
+            "longFrames": 17,
+            "maxMs": 162.5,
+            "medianMs": 16.7,
+            "missedRefreshes": 45,
+            "p95Ms": 16.7,
+            "p99Ms": 42.6,
+            "seconds": 16.05
+          },
+          "peakFootprintMB": 43.2,
+          "periodMs": 16.7,
+          "touches": 13,
+          "why": "background"
+        },
+        {
+          "footprintMB": 39.3,
+          "idle": {
+            "fps": 59.5,
+            "intervals": 1640,
+            "longFrames": 9,
+            "maxMs": 71.7,
+            "medianMs": 16.7,
+            "missedRefreshes": 13,
+            "p95Ms": 16.7,
+            "p99Ms": 16.7,
+            "seconds": 27.55
+          },
+          "kind": "frames",
+          "maxFps": 60,
+          "motion": {
+            "fps": 57.3,
+            "intervals": 919,
+            "longFrames": 16,
+            "maxMs": 163,
+            "medianMs": 16.7,
+            "missedRefreshes": 44,
+            "p95Ms": 16.7,
+            "p99Ms": 42.7,
+            "seconds": 16.05
+          },
+          "peakFootprintMB": 43.1,
+          "periodMs": 16.7,
+          "touches": 13,
+          "why": "background"
+        }
+      ]
+    }
+  },
+  "exact": {
+    "launch": {
+      "firstAfterInstallMs": 520.6,
+      "processToFirstFrameMs": {
+        "n": 10,
+        "median": 436.6,
+        "min": 418.7,
+        "max": 444.8
+      },
+      "settledFootprintMB": {
+        "n": 10,
+        "median": 21,
+        "min": 20.8,
+        "max": 21.2
+      },
+      "layersAtFirstFrame": 126
+    },
+    "smoke": {
+      "processToPresentMs": {
+        "n": 10,
+        "median": 408,
+        "min": 390.6,
+        "max": 424.6
+      },
+      "didFinishLaunchingToFirstRenderMs": {
+        "n": 10,
+        "median": 165.3,
+        "min": 154,
+        "max": 173.5
+      },
+      "sessionBootMs": {
+        "n": 10,
+        "median": 179.6,
+        "min": 172.5,
+        "max": 184.4
+      },
+      "sample": "observe: cold baked tti settled activation ready; coldLaunchTime 224.3 ms; timeToFirstRender 173.5 ms; timeToInteractive 190.2 ms; marks process 0.0 · constructor 206.2 · main 209.8 · delegateInit 223.6 · didFinishLaunching 241.8 · scene 264.0 · boot 281.7 · commit 400.9 · present 415.3 · activated 420.3 · interactive 432.0; ledger 408.9 [activation] → 415.0 [host:published, activation] → 422.2 []"
+    },
+    "journey": {
+      "journeys": 3,
+      "touchesPerJourney": 13,
+      "periodMs": 16.7,
+      "motion": {
+        "frames": 2786,
+        "missedRefreshes": 119,
+        "longFrames": 55,
+        "missedPer100Frames": 4.27,
+        "medianMs": {
+          "n": 3,
+          "median": 16.7,
+          "min": 16.7,
+          "max": 16.7
+        },
+        "p95Ms": {
+          "n": 3,
+          "median": 16.7,
+          "min": 16.7,
+          "max": 16.7
+        },
+        "p99Ms": {
+          "n": 3,
+          "median": 38.2,
+          "min": 37,
+          "max": 38.2
+        },
+        "maxMs": {
+          "n": 3,
+          "median": 157.2,
+          "min": 142.3,
+          "max": 169.3
+        }
+      },
+      "idle": {
+        "frames": 5032,
+        "missedRefreshes": 28,
+        "maxMs": {
+          "n": 3,
+          "median": 77.7,
+          "min": 43.4,
+          "max": 199.6
+        }
+      },
+      "peakFootprintMB": {
+        "n": 3,
+        "median": 39.4,
+        "min": 39.3,
+        "max": 39.4
+      },
+      "raw": [
+        {
+          "footprintMB": 38.5,
+          "idle": {
+            "fps": 59.8,
+            "intervals": 1685,
+            "longFrames": 4,
+            "maxMs": 77.7,
+            "medianMs": 16.7,
+            "missedRefreshes": 7,
+            "p95Ms": 16.7,
+            "p99Ms": 16.7,
+            "seconds": 28.2
+          },
+          "kind": "frames",
+          "maxFps": 60,
+          "motion": {
+            "fps": 57.5,
+            "intervals": 929,
+            "longFrames": 18,
+            "maxMs": 157.2,
+            "medianMs": 16.7,
+            "missedRefreshes": 40,
+            "p95Ms": 16.7,
+            "p99Ms": 38.2,
+            "seconds": 16.15
+          },
+          "peakFootprintMB": 39.4,
+          "periodMs": 16.7,
+          "touches": 13,
+          "why": "background"
+        },
+        {
+          "footprintMB": 38.4,
+          "idle": {
+            "fps": 59.7,
+            "intervals": 1675,
+            "longFrames": 7,
+            "maxMs": 43.4,
+            "medianMs": 16.7,
+            "missedRefreshes": 8,
+            "p95Ms": 16.7,
+            "p99Ms": 16.7,
+            "seconds": 28.05
+          },
+          "kind": "frames",
+          "maxFps": 60,
+          "motion": {
+            "fps": 57.6,
+            "intervals": 931,
+            "longFrames": 17,
+            "maxMs": 169.3,
+            "medianMs": 16.7,
+            "missedRefreshes": 38,
+            "p95Ms": 16.7,
+            "p99Ms": 37,
+            "seconds": 16.15
+          },
+          "peakFootprintMB": 39.3,
+          "periodMs": 16.7,
+          "touches": 13,
+          "why": "background"
+        },
+        {
+          "footprintMB": 38.5,
+          "idle": {
+            "fps": 59.5,
+            "intervals": 1672,
+            "longFrames": 3,
+            "maxMs": 199.6,
+            "medianMs": 16.7,
+            "missedRefreshes": 13,
+            "p95Ms": 16.7,
+            "p99Ms": 16.7,
+            "seconds": 28.08
+          },
+          "kind": "frames",
+          "maxFps": 60,
+          "motion": {
+            "fps": 57.5,
+            "intervals": 926,
+            "longFrames": 20,
+            "maxMs": 142.3,
+            "medianMs": 16.7,
+            "missedRefreshes": 41,
+            "p95Ms": 16.7,
+            "p99Ms": 38.2,
+            "seconds": 16.12
+          },
+          "peakFootprintMB": 39.4,
+          "periodMs": 16.7,
+          "touches": 13,
+          "why": "background"
+        }
+      ]
+    },
+    "perf": {
+      "idle": {
+        "intervals": 0,
+        "missedFrames": 0
+      },
+      "motionWindows": 13,
+      "intervals": 351,
+      "missedFrames": 4,
+      "skippedRefreshes": 4,
+      "worstFrameIntervalMs": 54.5,
+      "frameP99UpperBoundMs": 96,
+      "workMedianUpperBoundMs": 18.5,
+      "workP99UpperBoundMs": 48,
+      "cadence": {
+        "fail": 2,
+        "proxy-pass": 0,
+        "insufficient-evidence": 5,
+        "not-applicable": 6,
+        "restricted": 0
+      },
+      "windows": [
+        {
+          "intervals": 43,
+          "missedFrames": 0,
+          "maxNs": [
+            23000000,
+            23500000
+          ],
+          "workP99Ns": [
+            19500000,
+            20000000
+          ],
+          "cadence": "insufficient-evidence"
+        },
+        {
+          "intervals": 49,
+          "missedFrames": 3,
+          "maxNs": [
+            48000000,
+            96000000
+          ],
+          "workP99Ns": [
+            19000000,
+            19500000
+          ],
+          "cadence": "fail"
+        },
+        {
+          "intervals": 52,
+          "missedFrames": 0,
+          "maxNs": [
+            16500000,
+            17000000
+          ],
+          "workP99Ns": [
+            19500000,
+            20000000
+          ],
+          "cadence": "insufficient-evidence"
+        },
+        {
+          "intervals": 52,
+          "missedFrames": 0,
+          "maxNs": [
+            16500000,
+            17000000
+          ],
+          "workP99Ns": [
+            23500000,
+            24000000
+          ],
+          "cadence": "insufficient-evidence"
+        },
+        {
+          "intervals": 52,
+          "missedFrames": 0,
+          "maxNs": [
+            16500000,
+            17000000
+          ],
+          "workP99Ns": [
+            22000000,
+            22500000
+          ],
+          "cadence": "insufficient-evidence"
+        },
+        {
+          "intervals": 51,
+          "missedFrames": 1,
+          "maxNs": [
+            24000000,
+            48000000
+          ],
+          "workP99Ns": [
+            21500000,
+            22000000
+          ],
+          "cadence": "fail"
+        },
+        {
+          "intervals": 52,
+          "missedFrames": 0,
+          "maxNs": [
+            16500000,
+            17000000
+          ],
+          "workP99Ns": [
+            24000000,
+            48000000
+          ],
+          "cadence": "insufficient-evidence"
+        },
+        {
+          "intervals": 0,
+          "missedFrames": 0,
+          "maxNs": null,
+          "workP99Ns": null,
+          "cadence": "not-applicable"
+        },
+        {
+          "intervals": 0,
+          "missedFrames": 0,
+          "maxNs": null,
+          "workP99Ns": null,
+          "cadence": "not-applicable"
+        },
+        {
+          "intervals": 0,
+          "missedFrames": 0,
+          "maxNs": null,
+          "workP99Ns": null,
+          "cadence": "not-applicable"
+        },
+        {
+          "intervals": 0,
+          "missedFrames": 0,
+          "maxNs": null,
+          "workP99Ns": null,
+          "cadence": "not-applicable"
+        },
+        {
+          "intervals": 0,
+          "missedFrames": 0,
+          "maxNs": null,
+          "workP99Ns": null,
+          "cadence": "not-applicable"
+        },
+        {
+          "intervals": 0,
+          "missedFrames": 0,
+          "maxNs": null,
+          "workP99Ns": null,
+          "cadence": "not-applicable"
+        }
+      ]
+    }
+  },
+  "sizes": {
+    "simulator": {
+      "swiftui": {
+        "appMB": 2.73,
+        "binaryMB": 1.27
+      },
+      "exact": {
+        "appMB": 33.19,
+        "binaryMB": 31.19
+      }
+    },
+    "device": {
+      "swiftui": {
+        "ipaMB": 1.46,
+        "appMB": 1.62,
+        "binaryMB": 0.17
+      },
+      "exact": {
+        "ipaMB": 12.17,
+        "appMB": 24.09,
+        "binaryMB": 22.88,
+        "largest": [
+          "Good Time 22.88 MB",
+          "Assets.car 0.75 MB",
+          "assets 0.39 MB",
+          "AppIcon60x60@3x.png 0.02 MB"
+        ]
+      }
+    },
+    "testflight": {
+      "build": 6,
+      "ipaMB": 12.18
+    }
+  },
+  "seconds": 496
+}
