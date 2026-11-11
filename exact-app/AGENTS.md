@@ -51,7 +51,7 @@ system's Reduce Motion): with it on, every `animation`, `transition`, exit and p
 
 | What | How |
 | --- | --- |
-| Intro → Wake Up | The intro leaves with `-exact-exit-animation` (`introLeave`: fade, drift left; plays on the web and macOS; on iOS the route swaps at once), the Wake Up screen rises in (`rise`), the tab bar rises after it (`barRise`). |
+| Intro → Wake Up | The intro leaves with `-exact-exit-animation` (`introLeave`: fade, drift left; filmed on the web; on iOS the intro and Wake Up share one route, which swaps at once), the Wake Up screen rises in (`rise`), the tab bar rises after it (`barRise`). |
 | Time rows | Each row rises in with a 70 ms stagger; "the best time to wake up" pops in (`badgePop`). Bed Time's rows are keyed by their time too, so a picked wake-up time replays them; Wake Up's are not, since they follow the clock every minute. |
 | Tab change | The panel fades and springs up (`-exact-spring(320, 30, 1)`); the tab's icon springs larger where the tab bar is ours (web, macOS; iOS uses UIKit's tab bar). |
 | Time picker | A picked time sets `bumping` for 140 ms (task `unbump`): the picker and the Bed Time header spring to a slightly larger scale and back. |
