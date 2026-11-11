@@ -34,11 +34,10 @@ GPU canvases). Without it they fall back to Core Image and Core Graphics, which 
 
 | Command | What it does | Time on this Mac |
 | --- | --- | --- |
-| `scripts/setup` | **The Forge setup command.** Idempotent: installs rustup and Bun 1.4.2 if missing, clones Exact to `~/dev/exact` if missing, checks out `exact.pin` (refuses if the checkout has local changes), and runs `bun scripts/exact.mjs setup` only when `setup --check` fails. | ~30 s when everything is present; ~15 min cold |
+| `scripts/setup` | **The Forge setup command.** Idempotent: installs rustup and Bun 1.4.2 if missing, clones Exact to `~/dev/exact` if missing, checks out `exact.pin` (refuses if the checkout has local changes), and runs `bun scripts/exact.mjs setup` only when `setup --check` fails. | 50 s when everything is present; ~15 min cold |
+| `scripts/update-exact-pin [<commit>]` | Moves the Exact pin; see below. | |
 | `scripts/doctor` | Checks the toolchain and changes nothing: Xcode, rustup, Cargo, Bun 1.4.2, the Exact pin, Exact's `setup --check` and `exact-app/`. Names the fix for each gap. | ~30 s |
-| `scripts/check` | **The Forge check command.** Doctor, `git diff --check`, compiles `app.contract` and type-checks `app.ts`, then builds the app and runs its Contract tests on the web (headless Chromium) and on the iOS Simulator `Good Time Check` (created on first use). `--web` (or `GOOD_TIME_CHECK_IOS=0`) skips iOS. | see below |
-
-Check runtime, measured 2026-11-11: see the "Check timings" section at the end.
+| `scripts/check` | **The Forge check command.** Doctor, `git diff --check`, compiles `app.contract` and type-checks `app.ts`, then builds the app and runs its Contract tests on the web (headless Chromium) and on the iOS Simulator `Good Time Check` (created on first use). `--web` (or `GOOD_TIME_CHECK_IOS=0`) skips iOS. | 2 min warm; see Check timings |
 
 The iOS step builds into a Cargo target shared by every worktree, `~/.cache/good-time/exact-target`
 (`GOOD_TIME_IOS_TARGET` overrides). Only the first iOS build on a Mac is cold. A fresh Forge worktree reuses the
@@ -68,16 +67,42 @@ Many simulators are usually booted on this Mac. Name one with `EXACT_SIM`, or Ex
 Exact is pre-1.0 and changes daily. Move the pin on purpose, in its own commit:
 
 ```sh
-git -C ~/dev/exact fetch origin
-git -C ~/dev/exact log --oneline HEAD..origin/main | head -50    # read what changed
-git -C ~/dev/exact rev-parse origin/main > exact.pin              # the new commit
-scripts/setup                                                     # checks it out, runs exact setup if needed
-(cd exact-app && EXACT2=~/dev/exact bun exact.mjs update)         # rewrites exact.mjs, AGENTS.md block, lock drift
+scripts/update-exact-pin              # to the checkout's origin/main; or: scripts/update-exact-pin <commit>
 scripts/check
 git add exact.pin exact-app && git commit -m "<issue>: move Exact to <short sha>"
 ```
 
-Run `bun exact.mjs update` from the main checkout (`~/dev/good-time-sleep-calculator/exact-app`), or check that it
-kept the relative path `../../exact` in `exact-app/exact.mjs`, `app.json` and `exact-app/AGENTS.md`. Run from a
-worktree elsewhere, it writes a path relative to that worktree, which breaks the main checkout.
+`scripts/update-exact-pin` prints the commits between the old and new pin, writes `exact.pin`, runs `scripts/setup`
+(checks the commit out in `~/dev/exact`, runs Exact's setup if its check fails), then `bun exact.mjs update` in
+`exact-app/`. `update` writes the checkout's path relative to where it runs, which from a Forge worktree is wrong for
+the main checkout, so the script then puts back the committed `../../exact` in `exact.mjs`, `app.json` and
+`exact-app/AGENTS.md`. Do not run a bare `bun exact.mjs update` from a worktree and commit what it wrote.
+
 `~/dev/exact` is shared by every worktree on this Mac: moving the pin moves it for all of them.
+
+## Check timings
+
+Measured on this Mac (Apple Silicon, Xcode 27.2) on 2026-11-11, Exact at `c582b3b`:
+
+| Run | Time |
+| --- | --- |
+| `scripts/setup`, cold (rustup, Bun, clone, `exact setup`: toolchains, wasm-bindgen, crates, Chromium, Hermes) | ~15 min |
+| `scripts/setup` when everything is installed | 50 s (mostly Exact's `setup --check`) |
+| `scripts/doctor` | ~30 s |
+| `scripts/check`, very first iOS build on the Mac | ~9 min (iOS 471 s after an earlier cold build had compiled Exact's tools; a truly cold first iOS build is ~13 min) |
+| `scripts/check` in a fresh Forge worktree, shared iOS target warm | **123 s**: doctor ~30 s, web tests 6 s, iOS build and tests 61 s |
+| `scripts/check --web` | ~32 s |
+
+Forge's `check_timeout_minutes` should be 30 or more, which leaves room for a cold iOS build after the pin moves.
+
+## Forge configuration (project `good-time`)
+
+```yaml
+setup: scripts/setup
+check: scripts/check
+check_timeout_minutes: 30
+```
+
+Both run from the task worktree's root. `scripts/setup` is idempotent and needs the network only when something
+is missing. The pinned Bun is `/Users/panda/.bun-1.4.2/bin/bun`; the scripts put it first on `PATH` themselves, so
+Forge needs no environment changes.
