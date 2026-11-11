@@ -104,3 +104,22 @@ this app (no encryption beyond what iOS provides); without it Apple holds every 
 
 They run the job with fake git, Exact, fastlane and Apple: build numbers, the lock, retries, readiness, the
 `.ipa` check, the signing checks, and that the lanes cannot submit for review or distribute externally.
+
+## Timings and first run (2026-11-11, Exact `c582b3b`)
+
+| Step | Time |
+| --- | --- |
+| `scripts/beta-ios --doctor` | 3 s |
+| Exact `--archive`, release target cold (first on this Mac) | 5 min |
+| Exact `--archive`, release target warm | 1 min 41 s |
+| Upload | 64 s |
+| Apple processing until `IN_BETA_TESTING` | 3 min 7 s |
+| Whole run, warm | **~6 min** |
+
+Forge's `release_timeout_minutes: 120` leaves room for a cold build (after an Exact pin move) and slow Apple
+processing; the job's own processing timeout is 90 minutes and a timed-out run resumes.
+
+First build: **Good Time 1.1.0 (5)**, commit `10a3e33` (LKM-650 branch, the app identical to `main`'s), Exact
+`c582b3b`: upload accepted, processing `VALID`, internal state `IN_BETA_TESTING`, group "App Store Connect Users",
+`ready_to_install: true` (receipt `~/.good-time/release/receipts/5.json`). A second `scripts/beta-ios` on that
+commit stopped at once: "Build 5 (10a3e33) is already ready to install."
