@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# LKM-648: the project check. Builds the Exact app in exact-app/ and runs its Contract tests on the web, then on an
+# iOS Simulator.
+#   scripts/check            # web and iOS Simulator
+#   scripts/check --web      # web only (about 15 s once the toolchain is built)
+# This is the Forge `check` command for the good-time project. It installs nothing: run scripts/setup first.
+# iOS uses its own simulator, "Good Time Check" (created and booted on first use), and a Cargo target shared by
+# every worktree ($IOS_TARGET_DIR), so only the first iOS build on this Mac is cold (about 13 minutes);
+# later ones take a minute or two. GOOD_TIME_CHECK_IOS=0 skips iOS as --web does.
+set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+
+ios="${GOOD_TIME_CHECK_IOS:-1}"
+for arg in "$@"; do
+  case "$arg" in
+    --web) ios=0 ;;
+    *) fail "unknown argument '$arg'. Usage: scripts/check [--web]" ;;
+  esac
+done
+
+SIM_NAME="Good Time Check"
+SIM_TYPE="com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro"
+
+started=$(date +%s)
+
+step "Doctor"
+"$ROOT/scripts/doctor"
+
+step "Lint: git diff --check"
+git -C "$ROOT" diff --check HEAD
+
+cd "$APP_DIR"
+
+step "Contract: compile app.contract and type-check app.ts"
+# app.contract.d.ts is generated (gitignored); a fresh worktree has none until this writes it.
+bun exact.mjs contract types app.contract -o app.contract.d.ts
+errors="$(bun exact.mjs contract build app.contract --json --errors-only)"
+if [[ "$(echo "$errors" | tr -d '[:space:]')" != "[]" ]]; then
+  echo "$errors"
+  fail "contract build reported errors"
+fi
+echo "no errors"
+
+step "Web: build and run the Contract tests"
+t=$(date +%s)
+bun exact.mjs test web
+echo "web: $(since "$t") s"
+
+if [[ "$ios" == "1" ]]; then
+  step "iOS Simulator ($SIM_NAME): build and run the Contract tests"
+  udid="$(xcrun simctl list devices available -j | bun -e '
+    const name = process.argv[1];
+    const all = Object.entries(JSON.parse(await Bun.stdin.text()).devices).filter(([rt]) => rt.includes("iOS")).flatMap(([, d]) => d);
+    console.log(all.find(d => d.name === name)?.udid ?? "");' "$SIM_NAME")"
+  if [[ -z "$udid" ]]; then
+    runtime="$(xcrun simctl list runtimes -j | bun -e '
+      const type = process.argv[1];
+      const rts = JSON.parse(await Bun.stdin.text()).runtimes.filter(r => r.platform === "iOS" && r.isAvailable
+        && (r.supportedDeviceTypes ?? []).some(d => d.identifier === type));
+      rts.sort((a, b) => Bun.semver.order(a.version, b.version));
+      console.log(rts.at(-1)?.identifier ?? "");' "$SIM_TYPE")"
+    [[ -n "$runtime" ]] || fail "no iOS Simulator runtime; install one in Xcode, Settings, Components"
+    udid="$(xcrun simctl create "$SIM_NAME" "$SIM_TYPE" "$runtime")"
+    echo "created $SIM_NAME ($udid) on $runtime"
+  fi
+  xcrun simctl bootstatus "$udid" -b >/dev/null
+  t=$(date +%s)
+  EXACT_SIM="$udid" CARGO_TARGET_DIR="$IOS_TARGET_DIR" bun exact.mjs test ios
+  echo "iOS: $(since "$t") s"
+else
+  echo "==> iOS Simulator skipped (--web or GOOD_TIME_CHECK_IOS=0)"
+fi
+
+step "check passed in $(since "$started") s"

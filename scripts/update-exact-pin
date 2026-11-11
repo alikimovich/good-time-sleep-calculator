@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# LKM-648: moves the Exact pin and refreshes exact-app's generated files to match.
+#   scripts/update-exact-pin [<commit>]      # default: origin/main of the Exact checkout
+# Then run scripts/check and commit exact.pin and exact-app/ together.
+# `bun exact.mjs update` writes the checkout's path relative to where it runs; from a Forge worktree that path
+# is wrong for the main checkout. This puts back the committed `../../exact` (main checkout: ~/dev/good-time-
+# sleep-calculator/exact-app -> ~/dev/exact) in every file update rewrites.
+set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+
+git -C "$EXACT_DIR" fetch --quiet origin
+target="$(git -C "$EXACT_DIR" rev-parse "${1:-origin/main}^{commit}")"
+old="$EXACT_PIN"
+if [[ "$target" == "$old" ]]; then
+  echo "exact.pin is already $target"
+  exit 0
+fi
+
+step "Exact $old -> $target"
+git -C "$EXACT_DIR" log --oneline "$old..$target" | head -40
+echo "$target" >"$ROOT/exact.pin"
+
+"$ROOT/scripts/setup"
+
+step "bun exact.mjs update"
+(cd "$APP_DIR" && bun exact.mjs update)
+
+step "Restore the committed checkout path ../../exact"
+for file in exact.mjs app.json AGENTS.md; do
+  f="$APP_DIR/$file"
+  [[ -f "$f" ]] || continue
+  # An absolute path to the checkout, or any relative path ending in dev/exact, becomes ../../exact.
+  perl -pi -e 's{\Q'"$EXACT_DIR"'\E(?![\w.-])}{../../exact}g; s{(?:\.\./)+dev/exact(?![\w.-])}{../../exact}g' "$f"
+done
+grep -n 'const path = ' "$APP_DIR/exact.mjs"
+
+step "pin moved; run scripts/check, then commit exact.pin and exact-app/"

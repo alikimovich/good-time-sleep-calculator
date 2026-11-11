@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# LKM-648: checks the Exact toolchain on this Mac without changing anything, and names the fix for each gap.
+#   scripts/doctor
+# Checks: Xcode 27.1 or later with the iOS Simulator SDK, rustup and Cargo, Bun 1.4.2 at ~/.bun-1.4.2/bin/bun,
+# the Exact checkout at the commit in exact.pin, Exact's own `setup --check` (Rust toolchains, wasm-bindgen,
+# Binaryen, node_modules, Chrome, the Hermes host and iOS bundles), and the app in exact-app/.
+# scripts/setup installs whatever this reports missing.
+set -uo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+
+problems=0
+ok() { printf '  ok    %s\n' "$*"; }
+bad() {
+  printf '  FAIL  %s\n' "$*"
+  problems=$((problems + 1))
+}
+
+step "Toolchain"
+
+if xcode="$(xcodebuild -version 2>/dev/null)"; then
+  xcode="${xcode%%$'\n'*}"
+  version="${xcode#Xcode }"
+  major="${version%%.*}"
+  minor="$(echo "$version" | cut -d. -f2)"
+  minor="${minor:-0}"
+  if ((major > 27 || (major == 27 && minor >= 1))); then ok "$xcode"; else bad "$xcode is older than 27.1; install Xcode 27.1 or later"; fi
+else
+  bad "xcodebuild did not answer; install Xcode and run 'sudo xcode-select -s /Applications/Xcode.app'"
+fi
+if xcrun --sdk iphonesimulator --show-sdk-path >/dev/null 2>&1; then ok "iOS Simulator SDK"; else bad "iOS Simulator SDK missing; install the iOS platform in Xcode, Settings, Components"; fi
+
+if command -v rustup >/dev/null 2>&1; then ok "$(rustup --version 2>/dev/null | head -1)"; else bad "rustup missing; run scripts/setup"; fi
+if command -v cargo >/dev/null 2>&1; then ok "cargo at $(command -v cargo)"; else bad "cargo missing; run scripts/setup"; fi
+
+if [[ -x "$BUN" ]] && [[ "$("$BUN" --version)" == "$BUN_VERSION" ]]; then
+  ok "Bun $BUN_VERSION at $BUN"
+else
+  bad "Bun $BUN_VERSION missing at $BUN; run scripts/setup"
+fi
+
+step "Exact checkout"
+pin_ok=0
+if [[ ! -d "$EXACT_DIR/.git" ]]; then
+  bad "no Exact checkout at $EXACT_DIR; run scripts/setup"
+else
+  head="$(exact_head)"
+  if [[ "$head" == "$EXACT_PIN" ]]; then
+    ok "$EXACT_DIR at $EXACT_PIN (exact.pin)"
+    pin_ok=1
+  else
+    bad "$EXACT_DIR is at $head, exact.pin says $EXACT_PIN; run scripts/setup"
+  fi
+  if [[ -n "$(git -C "$EXACT_DIR" status --porcelain --untracked-files=no)" ]]; then
+    bad "$EXACT_DIR has local changes to tracked files; builds would not match the pin"
+  fi
+fi
+
+step "bun scripts/exact.mjs setup --check"
+if ((pin_ok)) && [[ -x "$BUN" ]] && command -v cargo >/dev/null 2>&1; then
+  if out="$(cd "$EXACT_DIR" && "$BUN" scripts/exact.mjs setup --check 2>&1)"; then
+    ok "Exact setup --check passed"
+  else
+    echo "$out" | sed 's/^/        /'
+    bad "Exact setup --check failed; run scripts/setup"
+  fi
+else
+  bad "skipped: needs the pinned checkout, Bun $BUN_VERSION and Cargo first"
+fi
+
+step "App"
+if [[ -f "$APP_DIR/app.json" && -f "$APP_DIR/app.contract" && -f "$APP_DIR/exact.mjs" ]]; then
+  ok "exact-app/ ($(grep -o '"id": *"[^"]*"' "$APP_DIR/app.json" | head -1))"
+else
+  bad "exact-app/ is missing app.json, app.contract or exact.mjs"
+fi
+
+if ((problems)); then
+  echo "doctor: $problems problem(s)" >&2
+  exit 1
+fi
+step "doctor passed"
