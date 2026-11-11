@@ -33,7 +33,7 @@ git -C "$ROOT" diff --check HEAD
 
 cd "$APP_DIR"
 
-step "Contract: compile app.contract and type-check app.ts"
+step "Contract: compile app.contract"
 # app.contract.d.ts is generated (gitignored); a fresh worktree has none until this writes it.
 bun exact.mjs contract types app.contract -o app.contract.d.ts
 errors="$(bun exact.mjs contract build app.contract --json --errors-only)"
@@ -42,6 +42,10 @@ if [[ "$(echo "$errors" | tr -d '[:space:]')" != "[]" ]]; then
   fail "contract build reported errors"
 fi
 echo "no errors"
+
+step "TypeScript: type-check app.ts and the unit tests (Exact's pinned tsc and build options)"
+# contract build does not type-check app.ts; Exact's builds do, but this fails fast and also covers tools/*.test.ts.
+bun tools/typecheck.mjs
 
 step "Unit: app.ts's sleep-cycle math (bun test tools/)"
 bun test tools/

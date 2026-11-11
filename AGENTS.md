@@ -37,7 +37,7 @@ GPU canvases). Without it they fall back to Core Image and Core Graphics, which 
 | `scripts/setup` | **The Forge setup command.** Idempotent: installs rustup and Bun 1.4.2 if missing, clones Exact to `~/dev/exact` if missing, checks out `exact.pin` (refuses if the checkout has local changes), and runs `bun scripts/exact.mjs setup` only when `setup --check` fails. | 50 s when everything is present; ~15 min cold |
 | `scripts/update-exact-pin [<commit>]` | Moves the Exact pin; see below. | |
 | `scripts/doctor` | Checks the toolchain and changes nothing: Xcode, rustup, Cargo, Bun 1.4.2, the Exact pin, Exact's `setup --check` and `exact-app/`. Names the fix for each gap. | ~30 s |
-| `scripts/check` | **The Forge check command.** Doctor, `git diff --check`, compiles `app.contract` and type-checks `app.ts`, runs the math's unit tests (`bun test tools/`), then builds the app and runs its Contract tests on the web (headless Chromium), on macOS, and on the iOS Simulator `Good Time Check` (created on first use). `--web` skips both native hosts; `GOOD_TIME_CHECK_IOS=0` or `GOOD_TIME_CHECK_MACOS=0` skips one. | ~2 min warm; see Check timings |
+| `scripts/check` | **The Forge check command.** Doctor, `git diff --check`, compiles `app.contract`, type-checks `app.ts` and the unit tests with Exact's pinned `tsc` and build options (`bun tools/typecheck.mjs`), runs the math's unit tests (`bun test tools/`), then builds the app and runs its Contract tests on the web (headless Chromium), on macOS, and on the iOS Simulator `Good Time Check` (created on first use). `--web` skips both native hosts; `GOOD_TIME_CHECK_IOS=0` or `GOOD_TIME_CHECK_MACOS=0` skips one. | ~2 min warm; see Check timings |
 
 The iOS step builds into a Cargo target shared by every worktree, `~/.cache/good-time/exact-target`
 (`GOOD_TIME_IOS_TARGET` overrides). Only the first iOS build on a Mac is cold. A fresh Forge worktree reuses the
@@ -54,6 +54,7 @@ bun exact.mjs contract build app.contract --json --errors-only   # [] means no e
 bun exact.mjs web                  # the dev loop at http://127.0.0.1:8765/, rebuilds on save
 bun exact.mjs test web             # Contract tests on the web
 bun test tools/                    # unit tests of app.ts's sleep-cycle math
+bun tools/typecheck.mjs            # tsc on app.ts and tools/*.test.ts, Exact's strict build options
 CARGO_TARGET_DIR=~/.cache/good-time/exact-target bun exact.mjs test macos   # Contract tests on macOS
 EXACT_SIM="Good Time Check" bun exact.mjs test ios   # Contract tests on the iOS Simulator
 bun exact.mjs verify               # tests, plus checks light/dark, two widths, the largest text size

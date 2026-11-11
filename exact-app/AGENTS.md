@@ -41,4 +41,5 @@ The port of the SwiftUI app in `../good-time/`. Screenshots of both: `../docs/sc
 | `strings/{en,es,ru}.json` | The `Localizable.strings`, with `%d`/`%@` as `{count}`/`{time}`. |
 | `assets/icon-1024.png` | The app icon (`AppIcon.appiconset`). |
 | `tools/sleep.test.ts` | Unit tests of the math: `bun test tools/`. |
+| `tools/typecheck.mjs`, `tools/bun-test.d.ts` | `tsc` on `app.ts` and the unit tests, with Exact's pinned TypeScript and its build's strict options: `bun tools/typecheck.mjs`. |
 | `app.test.contract` | The Contract tests, run on the web, macOS and the iOS Simulator by `../scripts/check`. |
