@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# LKM-652: the performance comparison of the SwiftUI app and the Exact app on the iOS Simulator.
+# Method and results: docs/performance.md. Options: --launches N (10), --journeys N (3), --rounds N (3),
+# --no-device (skip the device builds for download sizes), --no-exact-perf, --out <file>.
+# Writes perf/results/<date>-simulator.json; scratch files go to $GTPERF_WORK (default /tmp/gt-perf).
+# Run scripts/setup first. Needs xcodegen (brew install xcodegen). About 8 minutes warm.
+set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+require xcodegen "Install it: brew install xcodegen"
+exec bun "$ROOT/scripts/perf.ts" "$@"
