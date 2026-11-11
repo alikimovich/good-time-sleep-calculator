@@ -1,6 +1,7 @@
 # Performance: the SwiftUI app and the Exact app
 
-LKM-652. Both apps were measured the same way on one iOS Simulator on 2026-11-11. Run `scripts/perf` to
+LKM-652. Both apps were measured the same way on one iOS Simulator on 2026-11-11 (the reference run started at
+10:57 UTC, after LKM-651's merged commit `f4ea06d` was released as TestFlight build 6). Run `scripts/perf` to
 measure again. It writes `perf/results/<date>-simulator.json`; the numbers below come from
 [`perf/results/2026-11-11-simulator.json`](../perf/results/2026-11-11-simulator.json).
 
@@ -14,14 +15,14 @@ two apps, not as what an iPhone shows. The download sizes come from real device 
 
 | | SwiftUI app (1.0.4) | Exact app | |
 | --- | --- | --- | --- |
-| First frame, process start → first presented frame (median of 10 relaunches) | **355 ms** (337–364) | **437 ms** (419–445) | Exact +82 ms |
-| First frame, first launch after install | 418 ms | 521 ms | Exact +103 ms |
-| Exact's own `present` mark (`EXACT_SMOKE=1`, median of 10) | — | 408 ms (391–425) | |
-| Missed refreshes during motion (3 journeys × 13 taps) | 138 in 2,751 frames (**5.0 per 100**) | 119 in 2,786 frames (**4.3 per 100**) | Exact 15 % fewer |
-| Frame interval during motion: median / p95 / p99 | 16.7 / 16.7 / **42.7 ms** | 16.7 / 16.7 / **38.2 ms** | |
-| Worst frame during motion (median of 3 journeys) | 163 ms | 157 ms | about equal |
-| Memory 1 s after the first frame (phys_footprint, intro screen) | **17.8 MB** | **21.0 MB** | Exact +3.2 MB |
-| Peak memory over a journey (XCUITest attached) | 43.2 MB | 39.4 MB | Exact −3.8 MB |
+| First frame, process start → first presented frame (median of 10 relaunches) | **358 ms** (343–494) | **440 ms** (424–452) | Exact +81 ms |
+| First frame, first launch after install | 410 ms | 537 ms | Exact +126 ms |
+| Exact's own `present` mark (`EXACT_SMOKE=1`, median of 10) | — | 401 ms (385–416) | |
+| Missed refreshes during motion (3 journeys × 13 taps) | 142 in 2,744 frames (**5.2 per 100**) | 114 in 2,788 frames (**4.1 per 100**) | Exact 21 % fewer |
+| Frame interval during motion: median / p95 / p99 | 16.7 / 16.7 / **41.7 ms** | 16.7 / 16.7 / **37.2 ms** | |
+| Worst frame during motion (median of 3 journeys) | 166 ms | 142 ms | Exact −24 ms |
+| Memory 1 s after the first frame (phys_footprint, intro screen) | **17.7 MB** | **21.2 MB** | Exact +3.5 MB |
+| Peak memory over a journey (XCUITest attached) | 43.2 MB | 39.3 MB | Exact −3.9 MB |
 | Download size (device build, zipped .ipa, unsigned) | **1.5 MB** | **12.2 MB** | 8× |
 | Installed size (device .app) | 1.6 MB | 24.1 MB | main executable 0.17 MB vs 22.9 MB |
 | TestFlight build 6 (`scripts/beta-ios`, signed .ipa) | — | 12.2 MB | |
@@ -29,16 +30,16 @@ two apps, not as what an iPhone shows. The download sizes come from real device 
 What this means:
 
 - **Motion on the simulator: Exact is no worse, and slightly better.** Both apps hold 60 fps for at
-  least 95 % of motion frames. Exact misses about 15 % fewer refreshes and has a lower p99, even though it
+  least 95 % of motion frames. Exact misses about 20 % fewer refreshes and has a lower p99, even though it
   animates more (staggered rows, springs, a badge pop; the SwiftUI app mostly fades and pushes). The worst frames
-  in both apps are about 160 ms. The probe does not record which tap caused them. Because they are so similar
+  in both apps are 140–200 ms. The probe does not record which tap caused them. Because they are so similar
   in both apps, they probably come from work the two apps share (UIKit, XCTest's event delivery, the
   simulator), not from either app's own code.
 - **Exact's first frame comes about 80 ms later.** Exact's own marks show where the time goes: the
-  process reaches `main` at about 210 ms, the same as a native app, because dyld loads the 23 MB executable.
-  `didFinishLaunching` → first render then takes about 165 ms (session boot about 180 ms: the runner, layout and
+  process reaches `main` at about 211 ms, the same as a native app, because dyld loads the 23 MB executable.
+  `didFinishLaunching` → first render then takes about 160 ms (session boot about 172 ms: the runner, layout and
   the first apply of about 19 views). The SwiftUI app draws its intro in 8 layers; Exact draws it in 126.
-- **Exact uses about 3 MB more memory at idle** (the Rust runtime and Hermes). It used about 4 MB less at the
+- **Exact uses about 3.5 MB more memory at idle** (the Rust runtime and Hermes). It used about 4 MB less at the
   journey's peak.
 - **Size is the biggest cost.** The executable carries the Exact runtime, so the download grows from 1.5 MB to
   12.2 MB. This size does not grow much as the app grows.
@@ -46,7 +47,7 @@ What this means:
 ## Method
 
 `scripts/perf` runs every step below. Run `scripts/setup` first. The script also needs `xcodegen`
-(`brew install xcodegen`). A warm run takes about 8 minutes (496 s on 2026-11-11). The first run on a Mac also
+(`brew install xcodegen`). A warm run takes about 8 minutes (482 s on 2026-11-11). The first run on a Mac also
 builds Exact's simulator and device release targets.
 
 ```sh
@@ -76,8 +77,8 @@ code measures both.
 - **First frame:** the time from process start (the kernel's `p_starttime`) to the first vsync after the first
   Core Animation commit in which the key window holds the content. This is Exact's own definition of its
   `present` mark (`ExactKit/Launch.swift`), so the Exact app also prints its `EXACT_SMOKE=1` number as a
-  cross-check. The probe reads the time at the end of the commit's run-loop turn, so it reads about 25–30 ms
-  later than Exact's own mark (437 against 408 ms). This offset is the same for both apps. In both apps, the
+  cross-check. The probe reads the time at the end of the commit's run-loop turn, so it reads about 25–40 ms
+  later than Exact's own mark (440 against 401 ms). This offset is the same for both apps. In both apps, the
   first commit with a visible key window already holds the whole first screen (8 and 126 layers; the counts
   are the same 1 s later).
   These are relaunches of a terminated process with the simulator's caches warm, which is what a person sees
@@ -111,15 +112,15 @@ makes the same taps and reads `perf frames live 1200` after each one (`exact.fra
 
 | | Exact `perf frames live`, 13 windows |
 | --- | --- |
-| Frames with frame work | 351 |
-| Missed frames / skipped refreshes | 4 / 4 |
-| Worst frame interval | 54.5 ms |
-| Frame work per frame, median / p99 (upper bin bounds) | ≤ 18.5 ms / ≤ 48 ms |
-| Cadence assessment per window | 2 fail, 5 insufficient evidence (`simulator-deadlines`), 6 not applicable (no Exact frame work: UIKit's own tab and push animations) |
+| Frames with frame work | 346 |
+| Missed frames / skipped refreshes | 6 / 6 |
+| Worst frame interval | 51.5 ms |
+| Frame work per frame, median / p99 (upper bin bounds) | ≤ 18 ms / ≤ 23 ms |
+| Cadence assessment per window | 3 fail, 4 insufficient evidence (`simulator-deadlines`), 6 not applicable (no Exact frame work: UIKit's own tab and push animations) |
 
-This counts only Exact's own frames, the display-link callbacks that did frame work. That is why it sees 4
+This counts only Exact's own frames, the display-link callbacks that did frame work. That is why it sees 6
 misses where the probe, which counts every main-thread callback, sees about 40 per journey. On the simulator,
-the development build's work per frame (a median of about 18.5 ms) is above the 16.7 ms budget. The production
+the development build's work per frame (a median of about 18 ms) is above the 16.7 ms budget. The production
 build is optimised, and the probe numbers above come from it. Exact itself says these are proxies, with
 presentation unobserved on the simulator.
 
@@ -148,8 +149,10 @@ Apple M4 Pro Mac mini, macOS 27.0.1, Xcode 27.2. Simulator: iPhone 17 Pro, iOS 2
   answers "does each app keep up with its own motion", not "the same animation, rendered two ways".
 - The probe's display link asks for the screen's maximum rate. It runs in both apps alike, but it keeps the
   main run loop awake every frame.
-- Numbers vary between runs by about ±10 ms for launch and ±5 missed refreshes per journey (see the min–max in
-  the results file). Compare apps within one run.
+- Numbers vary between runs by about ±10 ms for launch (with an occasional outlier, such as one SwiftUI relaunch at
+  494 ms) and ±5 missed refreshes per journey (see the min–max in the results file). Compare apps within one run.
+  An earlier full run the same morning (in this file's git history) agreed with every conclusion: first frame 355
+  against 437 ms, 5.0 against 4.3 missed refreshes per 100 motion frames, 17.8 against 21.0 MB.
 
 ## On a physical iPhone
 
