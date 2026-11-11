@@ -1,0 +1,143 @@
+# LKM-650: release lanes of the Exact app, after agent-messenger's (LKM-439). scripts/beta-ios and
+# scripts/release.ts call them; run them directly only to debug.
+#
+# Exact builds and signs the .ipa itself (bun exact.mjs ios --device --archive), so there is no
+# archive lane. These lanes talk to App Store Connect only.
+#
+# Authentication is an App Store Connect API key. scripts/release.ts reads the release config, which
+# lives outside the repository (~/.appstoreconnect/good-time.json), and passes only the key ID, the
+# issuer ID and the key file path: GT_ASC_KEY_ID, GT_ASC_ISSUER_ID, GT_ASC_KEY_PATH.
+# Lanes that query Apple write their result as JSON to output:<path>, so the caller never parses logs.
+#
+# Internal testers only: upload never submits for review and never distributes to external testers.
+require "json"
+require_relative "build_numbers"
+
+ENV["LANG"] = "en_US.UTF-8"
+ENV["LC_ALL"] = "en_US.UTF-8"
+ENV["FASTLANE_SKIP_UPDATE_CHECK"] = "1"
+ENV["FASTLANE_HIDE_CHANGELOG"] = "1"
+
+BUNDLE_ID = "com.alikimovich.good-time-to-sleep".freeze
+
+default_platform(:ios)
+
+def require_option(options, key)
+  value = options[key].to_s
+  UI.user_error!("missing option #{key}:<value>") if value.empty?
+  value
+end
+
+def authenticate
+  %w[GT_ASC_KEY_ID GT_ASC_ISSUER_ID GT_ASC_KEY_PATH].each do |name|
+    UI.user_error!("#{name} is not set. Run scripts/beta-ios --doctor.") if ENV[name].to_s.empty?
+  end
+  app_store_connect_api_key(
+    key_id: ENV["GT_ASC_KEY_ID"],
+    issuer_id: ENV["GT_ASC_ISSUER_ID"],
+    key_filepath: ENV["GT_ASC_KEY_PATH"]
+  )
+end
+
+def write_json(options, data)
+  File.write(require_option(options, :output), JSON.pretty_generate(data))
+end
+
+# The named internal group, or the first internal group when no name is given.
+def internal_group(app, name)
+  groups = app.get_beta_groups(includes: "betaTesters").select(&:is_internal_group)
+  name.to_s.empty? ? groups.first : groups.find { |g| g.name == name }
+end
+
+platform :ios do
+  desc "Upload an exported .ipa to internal TestFlight. Does not wait for processing."
+  lane :upload do |options|
+    authenticate
+    upload_to_testflight(
+      ipa: require_option(options, :ipa),
+      app_identifier: BUNDLE_ID,
+      skip_waiting_for_build_processing: true,
+      skip_submission: true,
+      distribute_external: false
+    )
+  end
+
+  desc "Write the Apple status of one build. ensure_group:true adds a processed build to the internal group."
+  lane :status do |options|
+    authenticate
+    version = require_option(options, :version)
+    build_number = require_option(options, :build_number)
+    result = { bundle_id: BUNDLE_ID, version: version, build_number: build_number, found: false }
+    app = Spaceship::ConnectAPI::App.find(BUNDLE_ID)
+    result[:app_record] = !app.nil?
+    build = app && GoodTimeBuildNumbers.find_build(Spaceship::ConnectAPI::Build, app.id, version, build_number)
+    if build
+      result.merge!(
+        found: true,
+        processing_state: build.processing_state,
+        internal_build_state: build.build_beta_detail&.internal_build_state,
+        uploaded_date: build.uploaded_date,
+        expired: build.expired
+      )
+      group = internal_group(app, options[:group])
+      if group
+        result.merge!(group: group.name, group_has_all_builds: group.has_access_to_all_builds == true)
+        if options[:ensure_group].to_s == "true" && build.processing_state == "VALID" && !group.has_access_to_all_builds
+          build.add_beta_groups(beta_groups: [group])
+          result[:group_added] = true
+        end
+      end
+    end
+    write_json(options, result)
+  end
+
+  desc "Write the highest build number Apple knows for the app"
+  lane :latest_build_number do |options|
+    authenticate
+    app = Spaceship::ConnectAPI::App.find(BUNDLE_ID)
+    UI.user_error!("App Store Connect has no app record for #{BUNDLE_ID}.") unless app
+    # Every build, all pages, with an explicit includes (fastlane/build_numbers.rb).
+    write_json(options, { max: GoodTimeBuildNumbers.latest_for_app(Spaceship::ConnectAPI, app.id) || 0 })
+  end
+
+  desc "Write what the App Store Connect account has for the release doctor"
+  lane :doctor do |options|
+    result = { auth: false, bundle_id: BUNDLE_ID }
+    begin
+      authenticate
+      registered = Spaceship::ConnectAPI::BundleId.find(BUNDLE_ID)
+      app = Spaceship::ConnectAPI::App.find(BUNDLE_ID)
+      groups = app ? app.get_beta_groups(includes: "betaTesters").select(&:is_internal_group) : []
+      versions = app ? app.get_app_store_versions.map { |v| { version: v.version_string, state: v.app_store_state } } : []
+      result.merge!(
+        bundle_id_registered: !registered.nil?,
+        team_id: registered&.seed_id,
+        app_record: !app.nil?,
+        app_name: app&.name,
+        app_store_versions: versions,
+        latest_build_number: app ? GoodTimeBuildNumbers.latest_for_app(Spaceship::ConnectAPI, app.id) : nil,
+        internal_groups: groups.map { |g| { name: g.name, testers: Array(g.beta_testers).length, all_builds: g.has_access_to_all_builds == true } },
+        auth: true
+      )
+    rescue StandardError => e
+      result[:error] = e.message.lines.first.to_s.strip
+    end
+    write_json(options, result)
+  end
+
+  desc "Create (or fetch) the App Store provisioning profile for the app and install it. Prints its path as JSON to output:."
+  lane :profile do |options|
+    authenticate
+    # sigh with an API key: finds a valid App Store profile for the bundle ID and the team's Apple
+    # Distribution certificate, or creates one, and installs it in Xcode's profile folder.
+    uuid = get_provisioning_profile(
+      app_identifier: BUNDLE_ID,
+      team_id: CredentialsManager::AppfileConfig.try_fetch_value(:team_id),
+      readonly: options[:readonly].to_s == "true",
+      skip_certificate_verification: false,
+      output_path: require_option(options, :output_directory),
+      filename: "GoodTime_AppStore.mobileprovision"
+    )
+    write_json(options, { path: lane_context[SharedValues::SIGH_PROFILE_PATH], uuid: uuid, name: lane_context[SharedValues::SIGH_NAME] })
+  end
+end

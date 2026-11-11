@@ -1,0 +1,4 @@
+# LKM-650: Apple team for the release lanes. No credentials here.
+# The App Store Connect API key comes from a file outside the repository (see fastlane/Fastfile).
+team_id("ZMVK3ALPSD")
+app_identifier("com.alikimovich.good-time-to-sleep")

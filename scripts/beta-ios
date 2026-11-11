@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# LKM-650: the serialized internal TestFlight release job for one exact commit of the Exact app
+# (the design of agent-messenger's scripts/beta-ios, LKM-439).
+#   scripts/beta-ios                       # HEAD
+#   scripts/beta-ios <commit>              # or any commit-ish
+#   scripts/beta-ios <commit> --force-new  # another build of a commit that is already ready
+#   scripts/beta-ios --doctor              # checks the key, signing, the Exact pin and Apple; changes nothing
+# Builds a clean tree of the commit, reserves a unique monotonic build number (above 3), signs, exports,
+# uploads to internal TestFlight, waits for Apple processing and confirms that the internal group can
+# install it. Never submits for review, never adds external testers. Only one job runs at a time. The
+# receipt, logs, .ipa and dSYMs are under GT_RELEASE_HOME (default ~/.good-time/release).
+# Details: docs/release.md and scripts/release.ts.
+set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+
+require git "Install the Xcode command line tools."
+require fastlane "Install it with 'brew install fastlane'."
+require xcodebuild "Install Xcode and select it with 'sudo xcode-select -s <path to Xcode.app>'."
+[ -x "$BUN" ] || fail "Bun $BUN_VERSION is missing at $BUN. Run scripts/setup."
+require cargo "Run scripts/setup (it installs rustup)."
+
+export EXACT_DIR
+exec "$BUN" "$ROOT/scripts/release.ts" "$@"
