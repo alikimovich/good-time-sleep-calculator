@@ -1,6 +1,8 @@
 import type { Answer, Result, Sources } from './app.contract.d.ts';
 
-export const grants = '';
+// The wake-up alarm (LKM-696): AlarmKit's permission prompt, with `purpose.alarms` as its text
+// (NSAlarmKitUsageDescription).
+export const grants = 'device.alarms purpose.alarms';
 
 // The sleep-cycle math, as the SwiftUI app does it (good-time/WakeUpView.swift, BedTimeView.swift):
 // a night is 3 to 6 whole cycles, after the time it takes to fall asleep.
@@ -63,14 +65,106 @@ export function formatClock(at: number, locale: string, timeZone: string): strin
   return format.format(new Date(at)).replace(/[\u202f\u00a0]/g, ' ');
 }
 
+/** The wall clock at `at` in `timeZone`, "HH:MM" (24-hour): what a wake-up alarm is set from. */
+export function wallClock(at: number, timeZone: string): string {
+  let format: Intl.DateTimeFormat;
+  const options: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' };
+  try {
+    format = new Intl.DateTimeFormat('en-US', { ...options, timeZone: timeZone || undefined });
+  } catch {
+    format = new Intl.DateTimeFormat('en-US', options);
+  }
+  const parts = format.formatToParts(new Date(at));
+  const part = (type: string) => parts.find((p) => p.type === type)?.value ?? '00';
+  return `${part('hour').padStart(2, '0')}:${part('minute')}`;
+}
+
+/** An alarm's day and time as the person's region writes them: "Mon, Mar 16, 8:00 AM". */
+export function formatAlarm(at: number, locale: string, timeZone: string): string {
+  const options: Intl.DateTimeFormatOptions = { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' };
+  let format: Intl.DateTimeFormat;
+  try {
+    format = new Intl.DateTimeFormat(locale || undefined, { ...options, timeZone: timeZone || undefined });
+  } catch {
+    format = new Intl.DateTimeFormat(undefined, options);
+  }
+  return format.format(new Date(at)).replace(/[\u202f\u00a0]/g, ' ');
+}
+
 type Row = Result<'schedule'>['wake'][number];
 
 const rows = (times: Wake[], locale: string, timeZone: string): Row[] =>
   times.map(({ cycles, at }) => ({
     cycles,
     time: formatClock(at, locale, timeZone),
+    hhmm: wallClock(at, timeZone),
     progress: progressPercentage(cycles),
   }));
+
+// The wake-up alarm (LKM-696): modules/apple/WakeAlarm.swift answers, through AlarmKit on iOS 26
+// and later. Where there is no module (the web) or it cannot answer, the alarm is unsupported:
+// never a notification in its place.
+
+/** What the native module answers (WakeAlarmSnapshot.json). */
+export interface AlarmReply {
+  available: boolean;
+  auth: string;
+  scheduled: boolean;
+  at: number;
+  hhmm: string;
+  error: string;
+  /** The sound the scheduled alarm rings with (an `ALARM_SOUNDS` id): what the system was given. */
+  sound?: string;
+}
+
+/** The alarm's sounds: the system's default, then Good Time's own tones (assets/sounds/alarm-<id>.wav,
+ * made by tools/alarm-tones.mjs). WakeAlarmCore.swift's `WakeAlarmSound` lists the same ids. */
+export const ALARM_SOUNDS = ['default', 'sunrise', 'chime', 'pulse'];
+
+/** A stored or requested sound as one the app has; anything else is the system's default. */
+export function alarmSound(id: string | null | undefined): string {
+  return ALARM_SOUNDS.includes(String(id)) ? String(id) : 'default';
+}
+
+export type AlarmView = Result<'wakeAlarm'>;
+
+export const UNSUPPORTED: AlarmReply = { available: false, auth: 'unsupported', scheduled: false, at: 0, hhmm: '', error: '' };
+export const MODULE_FAILED: AlarmReply = { available: true, auth: 'unknown', scheduled: false, at: 0, hhmm: '', error: 'failed' };
+
+/** The message an error shows: a refusal is told by the denied card, a busy tap by nothing. */
+export function alarmErrorShown(error: string, auth: string): boolean {
+  return error !== '' && error !== 'busy' && error !== 'unsupported' && !(error === 'denied' && auth === 'denied');
+}
+
+/** A reply as the view reads it, the alarm's day and time written for the person's region. */
+export function alarmView(reply: Partial<AlarmReply> | null | undefined, locale: string, timeZone: string): AlarmView {
+  const r = { ...UNSUPPORTED, ...(reply ?? {}) };
+  const scheduled = Boolean(r.scheduled) && typeof r.at === 'number' && r.at > 0;
+  return {
+    available: Boolean(r.available),
+    auth: String(r.auth),
+    scheduled,
+    at: scheduled ? r.at : 0,
+    label: scheduled ? formatAlarm(r.at, locale, timeZone) : '',
+    time: scheduled ? formatClock(r.at, locale, timeZone) : '',
+    hhmm: scheduled ? String(r.hhmm) : '',
+    error: String(r.error ?? ''),
+    showError: alarmErrorShown(String(r.error ?? ''), String(r.auth)),
+    sound: scheduled ? alarmSound(r.sound) : '',
+  };
+}
+
+type Native = Parameters<Sources['wakeAlarm']>[3];
+
+async function ask(native: Native, request: Record<string, unknown>): Promise<Partial<AlarmReply>> {
+  if (!native?.available) return request.op === 'status' ? UNSUPPORTED : { ...UNSUPPORTED, error: 'unsupported' };
+  try {
+    return (await native.later(request)) as Partial<AlarmReply>;
+  } catch {
+    // The module is here but failed: say the request failed, not that the device has no alarms.
+    return MODULE_FAILED;
+  }
+}
 
 const sources: Sources = {
   schedule: ([utcOffset, wakeUp, fallAsleep, cycleLength, locale, timeZone, now]): Result<'schedule'> => {
@@ -81,6 +175,14 @@ const sources: Sources = {
       bed: rows(bedTimes(wakeAt, fallAsleep, cycleLength), locale, timeZone),
     };
   },
+  wakeAlarm: async ([locale, timeZone], _store, _storage, native) => {
+    native?.watch('alarm');
+    return alarmView(await ask(native, { op: 'status' }), locale, timeZone);
+  },
+  setWakeAlarm: async ([hhmm, timeZone, title, stop, now, locale, sound], _store, _storage, native) =>
+    alarmView(await ask(native, { op: 'set', hhmm, timeZone, title, stop, now, sound: alarmSound(sound) }), locale, timeZone),
+  cancelWakeAlarm: async ([locale, timeZone], _store, _storage, native) =>
+    alarmView(await ask(native, { op: 'cancel' }), locale, timeZone),
 };
 export const answer: Answer = (source, args, store, storage, native) =>
   sources[source](args, store, storage, native);

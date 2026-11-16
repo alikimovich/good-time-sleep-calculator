@@ -156,3 +156,22 @@ test "reduced motion: nothing springs, and the app works the same"
   expect state bumping == false
   clock data
   expect text "bed-6-time" == "9:15 PM"
+
+// The wake-up alarm (LKM-696). The web and macOS have no AlarmKit, and under the agent the iOS
+// module answers as they do unless a fixture is chosen (GoodTimeAlarmFixture): every host says
+// plainly that alarms are not available here, and offers no alarm buttons.
+test "where there are no alarms, both tabs say so and offer no alarm button"
+  tap "intro-continue"
+  clock data
+  expect tree has "wakeup-alarm-unsupported"
+  expect text "wakeup-alarm-unsupported" == "Wake-up alarms need iOS 26 or later on iPhone or iPad. Set this time in the Clock app instead."
+  expect tree missing "wake-5-alarm"
+  expect tree missing "wakeup-alarm-scheduled"
+  expect tree missing "wakeup-alarm-sound"
+  expect tree missing "wakeup-alarm-preview"
+  tap "tab-bedtime"
+  clock data
+  expect tree has "bedtime-alarm-unsupported"
+  expect tree missing "bedtime-alarm"
+  expect tree missing "bedtime-alarm-sound"
+  expect sound missing "assets/sounds/alarm-chime.wav"

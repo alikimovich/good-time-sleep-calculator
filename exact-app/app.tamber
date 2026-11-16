@@ -16,3 +16,4 @@ icons
   icon.sunrise = icon(sf "sunrise.fill", svg "icons/sunrise.svg")
   icon.bedtime = icon(sf "moon.zzz.fill", svg "icons/moon-zzz.svg")
   icon.settings = icon(sf "gearshape.fill", svg "icons/gear.svg")
+  icon.alarm = icon(sf "alarm", svg "icons/alarm.svg")

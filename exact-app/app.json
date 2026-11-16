@@ -5,6 +5,7 @@
   "id": "com.alikimovich.good-time-to-sleep",
   "start_url": "/",
   "display": "standalone",
+  "audio_session": "playback",
   "app": {
     "id": "com.alikimovich.good-time-to-sleep",
     "name": "Good Time"
@@ -16,6 +17,12 @@
       "deviceFamily": [
         "iphone",
         "ipad"
+      ],
+      "link": [
+        "-Xlinker",
+        "-weak_framework",
+        "-Xlinker",
+        "AlarmKit"
       ]
     },
     "macos": {
