@@ -194,3 +194,34 @@ test "Settings has an Alarm section; the result screens have no sound picker"
   expect tree missing "settings-alarm-preview"
   expect tree has "fall-asleep"
   expect tree has "settings-wake"
+
+// LKM-703: rows and "the best time" are in place at once; each row's cycle bar is a drawn track
+// and fill (the fill eases in when a result screen shows, unless Reduce Motion is on). A new time
+// and the clock update the rows in place: the bars stay, with their fractions.
+test "cycle bars: every row has its bar, through a picked time and the clock, either motion setting"
+  tap "intro-continue"
+  clock data
+  expect tree has "wake-3-bar"
+  expect tree has "wake-3-fill"
+  expect tree has "wake-6-fill"
+  expect tree has "wake-best"
+  clock +60000
+  clock data
+  expect tree has "wake-5-fill"
+  expect state times.wake.3 .progress == 1
+  tap "tab-bedtime"
+  clock data
+  expect tree has "bed-6-fill"
+  type "bedtime-wake" "06:30"
+  clock data
+  expect text "bed-6-time" == "9:15 PM"
+  expect tree has "bed-6-fill"
+  expect tree has "bed-3-fill"
+  expect state times.bed.3 .progress == 0.5
+
+test "cycle bars under Reduce Motion: in place, the same bars"
+  prefer prefers-reduced-motion reduce
+  tap "intro-continue"
+  clock data
+  expect tree has "wake-4-fill"
+  expect tree has "wake-best"

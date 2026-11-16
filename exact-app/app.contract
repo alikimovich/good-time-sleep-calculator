@@ -46,19 +46,17 @@ sound "assets/sounds/alarm-sunrise.wav"
 sound "assets/sounds/alarm-chime.wav"
 sound "assets/sounds/alarm-pulse.wav"
 
-// Motion (LKM-651). Every animation and transition below is gated on `still` (the system's
-// Reduce Motion): with it on, the screens change and the controls move without motion.
-// A time row rising into place. (Screens and the tab bar don't rise in: an entrance that holds
-// a tap target's first frame moves it off screen or hides it until the clock moves.)
-keyframes rise
-  from opacity=0 translate="0px 14px"
+// Motion (LKM-651, LKM-703). Every animation and transition below is gated on `still` (the
+// system's Reduce Motion): with it on, the screens change and the controls move without motion.
+// Rows, labels and "the best time" appear in place at once; the only content entrance is the
+// cycle bars filling (`fill`), once each time a result screen is shown.
+// A cycle bar's fill sliding in from the track's leading edge to its fraction (it is clipped by
+// the track, so its first frame is an empty track).
+keyframes fill
+  from translate="-100% 0px"
 // The intro leaving: it fades and drifts left, the way the arrow and the swipe point.
 keyframes introLeave
   to opacity=0 translate="-48px 0px" animation-timing-function="ease-in"
-// "the best time to wake up" landing under its time.
-keyframes badgePop
-  from opacity=0 scale=0.6
-  60% opacity=1 scale=1.08
 
 routes nav
   tab wakeup "/"
@@ -67,6 +65,8 @@ routes nav
 
 // The colour of a row's time: 6 cycles is TextColor1, 3 cycles TextColor4 (`Color("TextColor\(7 - cycles)")`).
 fn tone(cycles: number): string = `gt.text${7 - cycles}`
+// A bar's fraction, held to 0–1.
+fn share(p: number): number = p > 0 ? min(1, p) : 0
 
 component GoodTime
   state showIntro = true persist
@@ -162,9 +162,9 @@ component GoodTime
       width="100%" height="100%" display="flex" flex-direction="column" background-color="gt.background"
       column flex=1 min-height=0 position="relative"
         for tb in nav.tabs key=tb.name
+          // A tab's panel shows at once (LKM-703: no fade or slide of the rows in it).
           column role="tabpanel" id=`panel-${tb.name}` position="absolute" inset=0
-            opacity=(nav.tab == tb.name ? 1 : 0) translate=(nav.tab == tb.name ? "0px 0px" : "0px 12px")
-            transition=(still ? "none" : "opacity 220ms ease-out, translate -exact-spring(320, 30, 1)")
+            opacity=(nav.tab == tb.name ? 1 : 0)
             for e in tb.stack key=e.id
               if e.name == "wakeup"
                 if showIntro
@@ -199,7 +199,7 @@ component GoodTime
                       column padding-bottom=32
                         text t("wakeup.header") font-size="1.125rem" color="gt.highlight" padding="0px 16px 16px"
                           testId="wakeup-header"
-                        Times(rows=times.wake, best=true, prefix="wake", still=still, replay=false,
+                        Times(rows=times.wake, best=true, prefix="wake", fill=(not still and nav.tab == "wakeup"),
                           alarms=alarm.available, busy=alarmBusy, setAlarm=setAlarm)
                         AlarmStatus(alarm=alarm, error=alarmError, busy=alarmBusy, cancel=cancelAlarm,
                           settings=openAppSettings, prefix="wakeup")
@@ -220,7 +220,7 @@ component GoodTime
                         padding="0px 16px 16px" testId="bedtime-header"
                         transform-origin="left center" scale=(bumping ? 1.04 : 1)
                         transition=(still ? "none" : "scale -exact-spring(420, 18, 1)")
-                      Times(rows=times.bed, best=false, prefix="bed", still=still, replay=true,
+                      Times(rows=times.bed, best=false, prefix="bed", fill=(not still and nav.tab == "bedtime"),
                         alarms=false, busy=alarmBusy, setAlarm=setAlarm)
                       row align-items="center" justify-content="space-between" gap=12 padding="16px 16px 0px"
                         flex-wrap="wrap"
@@ -308,20 +308,19 @@ component Times
     rows: Row[]
     best: bool
     prefix: string
-    // Reduce Motion is on: no row rises, no badge pops.
-    still: bool
-    // A row keyed by its time too, so a new time (a picked wake-up time) rises in again. Wake Up's
-    // times follow the clock every minute, so its rows rise once, when the screen appears.
-    replay: bool
+    // The bars fill in (LKM-703): this screen is the one shown and Reduce Motion is off. It turns
+    // on when the screen is shown, which starts the fill once; while it stays on, a new time or
+    // the clock changes the rows in place and the bars keep their fractions.
+    fill: bool
     // Each row sets a wake-up alarm at its time (where the device has alarms).
     alarms: bool
     busy: bool
     setAlarm: action
   view
     column
-      for r, i in rows key=(replay ? `${r.cycles}-${r.time}` : `${r.cycles}`)
+      // Keyed by cycles only, so a new time or a clock tick updates a row in place, never remounts it.
+      for r in rows key=`${r.cycles}`
         column padding="8px 16px" testId=`${prefix}-${r.cycles}`
-          animation=(still ? "none" : `rise 380ms ${120 + i * 70}ms cubic-bezier(0.2, 0.8, 0.2, 1) both`)
           text t("wakeup.cycles", count=`${r.cycles}`) font-size="0.875rem" font-weight=600 color="gt.text4"
             testId=`${prefix}-${r.cycles}-cycles`
           // The alarm button sits at the row's trailing edge; the time takes the rest and wraps there.
@@ -337,9 +336,16 @@ component Times
           if best and r.cycles == 5
             text t("wakeup.best_time") font-family="ui-serif, serif" font-style="italic" font-size="1.125rem"
               color="gt.highlight" testId=`${prefix}-best`
-              animation=(still ? "none" : "badgePop 520ms 480ms ease-out both")
-          progress value=r.progress accent-color=tone(r.cycles) margin="8px 0px" width="100%"
-            aria-label=t("wakeup.cycles", count=`${r.cycles}`)
+          // The cycle bar, drawn as UIProgressView draws one (a 4-point capsule track, the fill in
+          // the row's tone) so its fill can ease in: the native bar's own easing is UIKit's and is
+          // skipped on first show. The fill's width is its fraction at once; only its translate moves.
+          view role="progressbar" aria-label=t("wakeup.cycles", count=`${r.cycles}`)
+            aria-valuenow=`${round(share(r.progress) * 100)}` aria-valuemin="0" aria-valuemax="100"
+            height=4 border-radius=2 margin="8px 0px" width="100%" overflow="hidden" background-color="-exact-fill"
+            testId=`${prefix}-${r.cycles}-bar`
+            view width=`${share(r.progress) * 100}%` height="100%" border-radius=2
+              background-color=tone(r.cycles) testId=`${prefix}-${r.cycles}-fill`
+              animation=(fill ? "fill 300ms cubic-bezier(0.23, 1, 0.32, 1) both" : "none")
 
 // The wake-up alarm's state, on both tabs: where it is set and for when (the system's answer), or
 // why it is not. It says plainly that the alarm is Good Time's, not the Clock app's. The sound is
