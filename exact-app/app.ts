@@ -118,6 +118,12 @@ export interface AlarmReply {
 export type AlarmView = Result<'wakeAlarm'>;
 
 export const UNSUPPORTED: AlarmReply = { available: false, auth: 'unsupported', scheduled: false, at: 0, hhmm: '', error: '' };
+export const MODULE_FAILED: AlarmReply = { available: true, auth: 'unknown', scheduled: false, at: 0, hhmm: '', error: 'failed' };
+
+/** The message an error shows: a refusal is told by the denied card, a busy tap by nothing. */
+export function alarmErrorShown(error: string, auth: string): boolean {
+  return error !== '' && error !== 'busy' && error !== 'unsupported' && !(error === 'denied' && auth === 'denied');
+}
 
 /** A reply as the view reads it, the alarm's day and time written for the person's region. */
 export function alarmView(reply: Partial<AlarmReply> | null | undefined, locale: string, timeZone: string): AlarmView {
@@ -132,18 +138,19 @@ export function alarmView(reply: Partial<AlarmReply> | null | undefined, locale:
     time: scheduled ? formatClock(r.at, locale, timeZone) : '',
     hhmm: scheduled ? String(r.hhmm) : '',
     error: String(r.error ?? ''),
+    showError: alarmErrorShown(String(r.error ?? ''), String(r.auth)),
   };
 }
 
 type Native = Parameters<Sources['wakeAlarm']>[3];
 
 async function ask(native: Native, request: Record<string, unknown>): Promise<Partial<AlarmReply>> {
-  if (!native?.available) return UNSUPPORTED;
+  if (!native?.available) return request.op === 'status' ? UNSUPPORTED : { ...UNSUPPORTED, error: 'unsupported' };
   try {
     return (await native.later(request)) as Partial<AlarmReply>;
   } catch {
-    // The web without a module, or a host that refused: no alarm here.
-    return request.op === 'status' ? UNSUPPORTED : { ...UNSUPPORTED, error: 'unsupported' };
+    // The module is here but failed: say the request failed, not that the device has no alarms.
+    return MODULE_FAILED;
   }
 }
 
@@ -160,8 +167,8 @@ const sources: Sources = {
     native?.watch('alarm');
     return alarmView(await ask(native, { op: 'status' }), locale, timeZone);
   },
-  setWakeAlarm: async ([hhmm, timeZone, title, now, locale], _store, _storage, native) =>
-    alarmView(await ask(native, { op: 'set', hhmm, timeZone, title, now }), locale, timeZone),
+  setWakeAlarm: async ([hhmm, timeZone, title, stop, now, locale], _store, _storage, native) =>
+    alarmView(await ask(native, { op: 'set', hhmm, timeZone, title, stop, now }), locale, timeZone),
   cancelWakeAlarm: async ([locale, timeZone], _store, _storage, native) =>
     alarmView(await ask(native, { op: 'cancel' }), locale, timeZone),
 };

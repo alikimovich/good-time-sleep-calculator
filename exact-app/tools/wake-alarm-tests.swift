@@ -124,6 +124,47 @@ let utc = tz("UTC")
         let again = await c.set("08:00", timeZone: utc, now: now, title: "Wake up")
         check(f.scheduleCount == 2 && again.record != nil, "after it is gone, the same time schedules again")
     }
+    // The list cannot be read: the record stays (never a forgotten alarm, never a duplicate).
+    do {
+        let f = FixtureWakeAlarmBackend(auth: .authorized)
+        let store = MemoryWakeAlarmStore()
+        let c = WakeAlarmController(backend: f, store: store)
+        let s = await c.set("08:00", timeZone: utc, now: now, title: "Wake up")
+        f.unreadable = true
+        check(c.status().record == s.record && store.record == s.record, "an unreadable list keeps the record")
+        let again = await c.set("08:00", timeZone: utc, now: now, title: "Wake up")
+        check(f.scheduleCount == 1 && again.record == s.record, "and a tap for its time still does not duplicate it")
+    }
+    // set answers what schedule returned, even before the system's list shows it.
+    do {
+        let f = FixtureWakeAlarmBackend(auth: .authorized)
+        let c = WakeAlarmController(backend: f, store: MemoryWakeAlarmStore())
+        f.unreadable = true
+        let s = await c.set("08:00", timeZone: utc, now: now, title: "Wake up")
+        check(s.record?.at == d("2026-03-16T08:00:00Z") && s.error == "", "set answers the scheduled alarm without re-reading the list")
+    }
+    // A cancel that does not take: the record stays and the error says so.
+    do {
+        let f = FixtureWakeAlarmBackend(auth: .authorized)
+        let store = MemoryWakeAlarmStore()
+        let c = WakeAlarmController(backend: f, store: store)
+        let s = await c.set("08:00", timeZone: utc, now: now, title: "Wake up")
+        f.stuck = [s.record!.id]
+        let gone = c.cancel()
+        check(gone.error == "failed" && gone.record == s.record && store.record == s.record, "a failed cancel keeps the record")
+        // Replacing it: the old will not go, so the new one is taken back; still one alarm.
+        let moved = await c.set("06:30", timeZone: utc, now: now, title: "Wake up")
+        check(moved.error == "failed" && moved.record == s.record && f.alarms.count == 1, "a replace whose old alarm stays takes the new one back")
+    }
+    // A cancel while a set is in flight is refused, so the set cannot undo it.
+    do {
+        let f = FixtureWakeAlarmBackend(auth: .authorized)
+        let c = WakeAlarmController(backend: f, store: MemoryWakeAlarmStore())
+        var during: WakeAlarmSnapshot?
+        f.duringSchedule = { during = c.cancel() }
+        _ = await c.set("08:00", timeZone: utc, now: now, title: "Wake up")
+        check(during?.error == "busy" && f.alarms.count == 1, "cancel during a set is busy")
+    }
     // A record from an earlier launch, read back.
     do {
         let f = FixtureWakeAlarmBackend(auth: .authorized)

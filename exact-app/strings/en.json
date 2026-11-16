@@ -32,5 +32,6 @@
   "alarm.open_settings": "Open Settings",
   "alarm.failed": "The alarm could not be set. Try again.",
   "alarm.unsupported": "Wake-up alarms need iOS 26 or later on iPhone or iPad. Set this time in the Clock app instead.",
-  "purpose.alarms": "Good Time sets the wake-up alarm you choose, so it rings at that time."
+  "purpose.alarms": "Good Time sets the wake-up alarm you choose, so it rings at that time.",
+  "alarm.stop": "Stop"
 }

@@ -24,15 +24,23 @@ enum WakeAlarmBackendError: Error {
     case failed(String)
 }
 
+/// What the system says of one alarm: it has it (at this date), it does not, or it could not say.
+enum WakeAlarmLookup: Equatable {
+    case present(Date)
+    case absent
+    case unknown
+}
+
 protocol WakeAlarmBackend: AnyObject {
     var auth: WakeAlarmAuth { get }
     func requestAuthorization() async -> WakeAlarmAuth
     /// Schedules a one-time alarm at `at`; returns the date the system holds it for.
-    func schedule(id: UUID, at: Date, title: String) async throws -> Date
-    /// The date of the system's alarm with this id, or nil when the system no longer has it
-    /// (it rang and was stopped, or the person removed it).
-    func scheduledDate(id: UUID) -> Date?
-    func cancel(id: UUID)
+    func schedule(id: UUID, at: Date, title: String, stop: String) async throws -> Date
+    /// The system's alarm with this id: `absent` once it rang and was stopped or was removed;
+    /// `unknown` when the list could not be read, which never drops the record.
+    func lookup(id: UUID) -> WakeAlarmLookup
+    /// Ends the alarm (stopping it if it is ringing); true when the system no longer has it.
+    func cancel(id: UUID) -> Bool
 }
 
 struct WakeAlarmRecord: Codable, Equatable {
@@ -116,18 +124,23 @@ final class WakeAlarmController {
     func status() -> WakeAlarmSnapshot {
         guard let backend else { return WakeAlarmSnapshot(auth: .unsupported, record: nil) }
         guard var record = store.record else { return WakeAlarmSnapshot(auth: backend.auth, record: nil) }
-        guard let date = backend.scheduledDate(id: record.id) else {
+        switch backend.lookup(id: record.id) {
+        case .absent:
             store.record = nil
             return WakeAlarmSnapshot(auth: backend.auth, record: nil)
+        case .unknown:
+            // The list could not be read: the record stands, so the alarm can still be cancelled.
+            return WakeAlarmSnapshot(auth: backend.auth, record: record)
+        case .present(let date):
+            if date != record.at { record.at = date; store.record = record }
+            return WakeAlarmSnapshot(auth: backend.auth, record: record)
         }
-        if date != record.at { record.at = date; store.record = record }
-        return WakeAlarmSnapshot(auth: backend.auth, record: record)
     }
 
     /// Sets the alarm for the next `hhmm` in `timeZone` after `now`. Asks for permission first when
     /// the person has not been asked. Answers the alarm the system now holds, or the error and the
     /// alarm that was there before (kept on any failure).
-    func set(_ hhmm: String, timeZone: TimeZone, now: Date, title: String) async -> WakeAlarmSnapshot {
+    func set(_ hhmm: String, timeZone: TimeZone, now: Date, title: String, stop: String = "Stop") async -> WakeAlarmSnapshot {
         guard let backend else { return WakeAlarmSnapshot(auth: .unsupported, record: nil, error: "unsupported") }
         if inFlight { return with(status(), error: "busy") }
         inFlight = true
@@ -142,21 +155,30 @@ final class WakeAlarmController {
         let id = UUID()
         let date: Date
         do {
-            date = try await backend.schedule(id: id, at: target, title: title)
+            date = try await backend.schedule(id: id, at: target, title: title, stop: stop)
         } catch WakeAlarmBackendError.notAuthorized {
             return with(status(), error: "denied")
         } catch {
             return with(status(), error: "failed")
         }
-        // The new one is set: only now does the one it replaces go, and only ours, by its id.
-        if let old = store.record, old.id != id { backend.cancel(id: old.id) }
-        store.record = WakeAlarmRecord(id: id, at: date, hhmm: hhmm)
-        return status()
+        // The new one is set: only now does the one it replaces go, and only ours, by its id. If the
+        // old one will not go, the new one is taken back, so there are never two.
+        if let old = store.record, old.id != id, !backend.cancel(id: old.id) {
+            if backend.cancel(id: id) { return with(status(), error: "failed") }
+            // Neither went: keep the new one (the one asked for); the old id stays unreachable.
+        }
+        let record = WakeAlarmRecord(id: id, at: date, hhmm: hhmm)
+        store.record = record
+        // The system's answer to `schedule`, not a re-read its list may not have caught up with.
+        return WakeAlarmSnapshot(auth: backend.auth, record: record)
     }
 
-    /// Cancels the app's own alarm, by its stored id. Nothing else is touched.
+    /// Cancels the app's own alarm, by its stored id. Nothing else is touched. If the system still
+    /// has it afterwards, the record stays and the error says so.
     func cancel() -> WakeAlarmSnapshot {
-        if let record = store.record { backend?.cancel(id: record.id) }
+        if inFlight { return with(status(), error: "busy") }
+        guard let backend, let record = store.record else { return status() }
+        guard backend.cancel(id: record.id) else { return with(status(), error: "failed") }
         store.record = nil
         return status()
     }
@@ -175,6 +197,10 @@ final class FixtureWakeAlarmBackend: WakeAlarmBackend {
     let answer: WakeAlarmAuth
     var alarms: [UUID: Date] = [:]
     var failNext = false
+    /// The list cannot be read (`lookup` answers unknown).
+    var unreadable = false
+    /// Ids whose cancel does not take.
+    var stuck: Set<UUID> = []
     private(set) var scheduleCount = 0
     private(set) var cancelled: [UUID] = []
     /// Called inside `schedule`, before it answers: a test's second tap lands here.
@@ -206,7 +232,7 @@ final class FixtureWakeAlarmBackend: WakeAlarmBackend {
         return auth
     }
 
-    func schedule(id: UUID, at: Date, title: String) async throws -> Date {
+    func schedule(id: UUID, at: Date, title: String, stop: String) async throws -> Date {
         scheduleCount += 1
         if let duringSchedule { await duringSchedule() }
         guard auth == .authorized else { throw WakeAlarmBackendError.notAuthorized }
@@ -215,10 +241,15 @@ final class FixtureWakeAlarmBackend: WakeAlarmBackend {
         return at
     }
 
-    func scheduledDate(id: UUID) -> Date? { alarms[id] }
+    func lookup(id: UUID) -> WakeAlarmLookup {
+        if unreadable { return .unknown }
+        return alarms[id].map { .present($0) } ?? .absent
+    }
 
-    func cancel(id: UUID) {
+    func cancel(id: UUID) -> Bool {
         cancelled.append(id)
+        if stuck.contains(id) { return false }
         alarms[id] = nil
+        return true
     }
 }

@@ -35,6 +35,8 @@ shape AlarmView
   time: string
   hhmm: string
   error: string
+  // An error worth a message (not a busy tap, not the denied card's own case).
+  showError: bool
 
 // Motion (LKM-651). Every animation and transition below is gated on `still` (the system's
 // Reduce Motion): with it on, the screens change and the controls move without motion.
@@ -81,7 +83,7 @@ component GoodTime
   resource alarm = wakeAlarm(time.formatLocale, time.timeZone) as shape AlarmView
   mutation alarmSet as shape AlarmView refreshes alarm then alarmAnswered
   mutation alarmCancelled as shape AlarmView refreshes alarm then alarmCleared
-  state alarmError = ""
+  state alarmError = false
   derive alarmBusy = pending(alarmSet) or pending(alarmCancelled)
 
   task tick mount
@@ -110,16 +112,16 @@ component GoodTime
     sleepCycleLength = match parseNumber(v) { case some(n) => n, case none => sleepCycleLength }
   // Asks for AlarmKit's permission on the first tap; the next `hhmm` after now, in this time zone.
   action setAlarm(hhmm: string)
-    alarmError = ""
-    send alarmSet = setWakeAlarm(hhmm, time.timeZone, t("alarm.title"), time.epochAtZero + performanceNow(),
-      time.formatLocale)
+    alarmError = false
+    send alarmSet = setWakeAlarm(hhmm, time.timeZone, t("alarm.title"), t("alarm.stop"),
+      time.epochAtZero + performanceNow(), time.formatLocale)
   action alarmAnswered
-    alarmError = match alarmSet { case some(r) => r.error, case none => "" }
+    alarmError = match alarmSet { case some(r) => r.showError, case none => false }
   action cancelAlarm
-    alarmError = ""
+    alarmError = false
     send alarmCancelled = cancelWakeAlarm(time.formatLocale, time.timeZone)
   action alarmCleared
-    alarmError = ""
+    alarmError = match alarmCancelled { case some(r) => r.showError, case none => false }
   action openAppSettings
     openURL("app-settings:")
   action setWakeUp(v: string)
@@ -288,7 +290,7 @@ component Times
 component AlarmCard
   props
     alarm: AlarmView
-    error: string
+    error: bool
     busy: bool
     cancel: action
     settings: action
@@ -313,5 +315,5 @@ component AlarmCard
             text t("alarm.open_settings")
         else
           text t("alarm.hint") font-size="0.9375rem" color="gt.text2" testId=`${prefix}-alarm-hint`
-        if error == "failed" or error == "invalid"
+        if error or alarm.showError
           text t("alarm.failed") font-size="0.9375rem" color="gt.text2" role="alert" testId=`${prefix}-alarm-failed`

@@ -72,6 +72,7 @@ final class GoodTimeModule: ExactModule {
         let hhmm = request["hhmm"] as? String ?? ""
         let zone = (request["timeZone"] as? String).flatMap(TimeZone.init(identifier:)) ?? .current
         let title = (request["title"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? "Wake up"
+        let stop = (request["stop"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? "Stop"
         let agentNow = (request["now"] as? Double).map { Date(timeIntervalSince1970: $0 / 1000) }
         Task { @MainActor in
             let controller = self.alarm()
@@ -81,7 +82,7 @@ final class GoodTimeModule: ExactModule {
             case "set":
                 // The session's clock under the agent, so a drive repeats; the device's otherwise.
                 let now = self.context.agent ? (agentNow ?? Date()) : Date()
-                let snapshot = await controller.set(hhmm, timeZone: zone, now: now, title: title)
+                let snapshot = await controller.set(hhmm, timeZone: zone, now: now, title: title, stop: stop)
                 reply.send(snapshot.json)
                 self.context.changed("alarm")
             case "cancel":
@@ -123,14 +124,14 @@ final class AlarmKitWakeAlarmBackend: WakeAlarmBackend {
         return auth
     }
 
-    func schedule(id: UUID, at: Date, title: String) async throws -> Date {
+    func schedule(id: UUID, at: Date, title: String, stop: String) async throws -> Date {
         let text = LocalizedStringResource(String.LocalizationValue(title))
         let alert: AlarmPresentation.Alert
         if #available(iOS 26.1, *) {
             alert = AlarmPresentation.Alert(title: text)
         } else {
             // 26.0 takes the Stop button from the app; 26.1 draws the system's own.
-            alert = AlarmPresentation.Alert(title: text, stopButton: AlarmButton(text: "Stop", textColor: .white, systemImageName: "stop.circle"))
+            alert = AlarmPresentation.Alert(title: text, stopButton: AlarmButton(text: LocalizedStringResource(String.LocalizationValue(stop)), textColor: .white, systemImageName: "stop.circle"))
         }
         let attributes = AlarmAttributes<GoodTimeAlarmMetadata>(presentation: AlarmPresentation(alert: alert), metadata: nil, tintColor: .orange)
         let configuration = AlarmManager.AlarmConfiguration<GoodTimeAlarmMetadata>.alarm(schedule: .fixed(at), attributes: attributes)
@@ -144,14 +145,19 @@ final class AlarmKitWakeAlarmBackend: WakeAlarmBackend {
         }
     }
 
-    func scheduledDate(id: UUID) -> Date? {
-        guard let alarm = (try? manager.alarms)?.first(where: { $0.id == id }) else { return nil }
-        if case .fixed(let date)? = alarm.schedule { return date }
-        return nil
+    func lookup(id: UUID) -> WakeAlarmLookup {
+        guard let listed = try? manager.alarms else { return .unknown }
+        guard let alarm = listed.first(where: { $0.id == id }) else { return .absent }
+        if case .fixed(let date)? = alarm.schedule { return .present(date) }
+        return .unknown
     }
 
-    func cancel(id: UUID) {
+    func cancel(id: UUID) -> Bool {
+        let ringing = (try? manager.alarms)?.first(where: { $0.id == id })?.state == .alerting
         try? manager.cancel(id: id)
+        // `cancel` may leave a ringing alarm ringing (Exact's packages/alarms measures this): stop it.
+        if ringing || lookup(id: id) != .absent { try? manager.stop(id: id) }
+        return lookup(id: id) == .absent
     }
 }
 #endif

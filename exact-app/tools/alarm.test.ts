@@ -1,7 +1,7 @@
 // The wake-up alarm's side in app.ts (LKM-696): what a native reply shows, and the wall clock a row
 // sets an alarm from. The scheduling itself is Swift's: tools/wake-alarm-tests.swift.
 import { describe, expect, test } from 'bun:test';
-import { alarmView, formatAlarm, UNSUPPORTED, wallClock } from '../app.ts';
+import { alarmErrorShown, alarmView, formatAlarm, MODULE_FAILED, UNSUPPORTED, wallClock } from '../app.ts';
 
 const at = Date.UTC(2026, 2, 16, 8, 0); // Mon 16 Mar 2026, 08:00 UTC
 
@@ -48,5 +48,22 @@ describe('alarmView', () => {
     expect(v.auth).toBe('denied');
     expect(v.error).toBe('denied');
     expect(v.scheduled).toBe(false);
+  });
+});
+
+describe('errors', () => {
+  test('a module failure is a failure, not "unsupported"', () => {
+    const v = alarmView(MODULE_FAILED, 'en-US', 'UTC');
+    expect(v.available).toBe(true);
+    expect(v.showError).toBe(true);
+  });
+  test('which errors get a message', () => {
+    expect(alarmErrorShown('', 'authorized')).toBe(false);
+    expect(alarmErrorShown('busy', 'authorized')).toBe(false);
+    expect(alarmErrorShown('unsupported', 'unsupported')).toBe(false);
+    expect(alarmErrorShown('denied', 'denied')).toBe(false); // the denied card says it
+    expect(alarmErrorShown('denied', 'notDetermined')).toBe(true); // asked, but nothing came of it
+    expect(alarmErrorShown('failed', 'authorized')).toBe(true);
+    expect(alarmErrorShown('invalid', 'authorized')).toBe(true);
   });
 });

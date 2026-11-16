@@ -32,5 +32,6 @@
   "alarm.open_settings": "Abrir Ajustes",
   "alarm.failed": "No se pudo poner la alarma. Inténtalo de nuevo.",
   "alarm.unsupported": "Las alarmas necesitan iOS 26 o posterior en iPhone o iPad. Pon esta hora en la app Reloj.",
-  "purpose.alarms": "Good Time pone la alarma que eliges para que suene a esa hora."
+  "purpose.alarms": "Good Time pone la alarma que eliges para que suene a esa hora.",
+  "alarm.stop": "Detener"
 }
