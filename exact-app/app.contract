@@ -109,8 +109,9 @@ component GoodTime
     showIntro = false
     now = performanceNow()
   action pick(name: string)
+    stopSounds(group="alarm-preview")
     nav = select(nav, name)
-  // Leaving Settings stops a sound preview still playing there.
+  // Leaving Settings (back, a link, a tab) stops a sound preview still playing there.
   action follow(url: string)
     stopSounds(group="alarm-preview")
     nav = go(nav, url)
@@ -283,7 +284,8 @@ component GoodTime
                               testId="settings-alarm-preview"
                               text t("alarm.preview")
                       footer
-                        text (alarm.available ? `${t("alarm.settings_hint")} ${t("alarm.sound_note")}` : t("alarm.unsupported"))
+                        // A sound change that could not re-set a scheduled alarm says so beside the picker.
+                        text (not alarm.available ? t("alarm.unsupported") : ((alarmError or alarm.showError) ? `${t("alarm.failed")} ${t("alarm.settings_hint")} ${t("alarm.sound_note")}` : `${t("alarm.settings_hint")} ${t("alarm.sound_note")}`))
                           testId="settings-alarm-note"
       row role="tablist" display=(showIntro ? "none" : "flex")
         button role="tab" aria-controls="panel-wakeup" aria-selected=(nav.tab == "wakeup") press=pick("wakeup")

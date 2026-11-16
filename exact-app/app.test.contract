@@ -184,7 +184,8 @@ test "Settings has an Alarm section; the result screens have no sound picker"
   tap "intro-continue"
   clock settle
   clock data
-  expect tree missing "wakeup-alarm-sound-note"
+  expect tree missing "wakeup-alarm-sound"
+  expect tree missing "wakeup-alarm-preview"
   tap "wakeup-settings"
   clock settle
   expect tree has "settings-alarm"

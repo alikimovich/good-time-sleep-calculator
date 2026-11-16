@@ -95,7 +95,11 @@ ringtones or to Apple Music, and the app says so.
 nothing to report they show only the one-line hint "Tap an alarm button…"; the card (`AlarmStatus`) appears only for a
 scheduled alarm (when, its sound, Cancel), denied permission, a failure, or no alarms on this device. Settings' Alarm
 section has the picker, Preview (when a tone is chosen) and a footer saying alarms are set from the time buttons;
-where there are no alarms it says only that. Leaving Settings (`back`, `follow`) stops a preview still playing.
+where there are no alarms it says only that. A sound change that fails to re-set a scheduled alarm puts "could not be
+set" in that footer too. Leaving Settings (`back`, `follow`, a tab) stops a preview still playing. The Contract tests only
+see the no-alarms answer; the available path (picker, Preview, the sound kept across a relaunch, an alarm set with it)
+is checked on the simulator with `GoodTimeAlarmFixture authorized`:
+`"tap intro-continue" "tap wakeup-settings" "type settings-alarm-sound chime" "tap settings-alarm-preview" "back" "tap wake-5-alarm" "clock +500" "tree"`.
 
 **No snooze, by design.** A countdown (snooze, pre-alert) needs a Live Activity widget extension, which needs its own
 App ID (`<app id>.widgets`) and App Store profile. `@exact/alarms` always adds one, which is why the app does not
