@@ -42,5 +42,7 @@
   "alarm.preview": "Preview",
   "alarm.preview_of": "Preview {sound}",
   "alarm.sound_of": "Sound: {sound}",
-  "alarm.sound_note": "Good Time's own tones, or the system's alarm sound. Ringtones from the Clock app and songs from Apple Music are not available to other apps."
+  "alarm.sound_note": "Good Time's own tones, or the system's alarm sound. Ringtones from the Clock app and songs from Apple Music are not available to other apps.",
+  "settings.section.alarm": "Alarm",
+  "alarm.settings_hint": "Set an alarm with the alarm button beside a wake-up time."
 }

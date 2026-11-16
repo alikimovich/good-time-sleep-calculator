@@ -110,9 +110,12 @@ component GoodTime
     now = performanceNow()
   action pick(name: string)
     nav = select(nav, name)
+  // Leaving Settings stops a sound preview still playing there.
   action follow(url: string)
+    stopSounds(group="alarm-preview")
     nav = go(nav, url)
   action back
+    stopSounds(group="alarm-preview")
     nav = back(nav)
   action openSettings
     nav = push(nav, path("settings"))
@@ -197,9 +200,8 @@ component GoodTime
                           testId="wakeup-header"
                         Times(rows=times.wake, best=true, prefix="wake", still=still, replay=false,
                           alarms=alarm.available, busy=alarmBusy, setAlarm=setAlarm)
-                        AlarmCard(alarm=alarm, error=alarmError, busy=alarmBusy, cancel=cancelAlarm,
-                          settings=openAppSettings, prefix="wakeup",
-                          sound=alarmSound, chooseSound=chooseSound, preview=previewSound)
+                        AlarmStatus(alarm=alarm, error=alarmError, busy=alarmBusy, cancel=cancelAlarm,
+                          settings=openAppSettings, prefix="wakeup")
                         text t("wakeup.footer") font-size="1rem" color="gt.text2" padding=16 margin="16px 16px 0px"
                           background-color="gt.card" border-radius=20 testId="wakeup-footer"
               if e.name == "bedtime"
@@ -231,9 +233,8 @@ component GoodTime
                             testId="bedtime-alarm"
                             image "symbol:icon.alarm"
                             text t("alarm.set_for", time=times.wakeUpTime)
-                      AlarmCard(alarm=alarm, error=alarmError, busy=alarmBusy, cancel=cancelAlarm,
-                        settings=openAppSettings, prefix="bedtime",
-                        sound=alarmSound, chooseSound=chooseSound, preview=previewSound)
+                      AlarmStatus(alarm=alarm, error=alarmError, busy=alarmBusy, cancel=cancelAlarm,
+                        settings=openAppSettings, prefix="bedtime")
               if e.name == "settings"
                 column navigationKey=`${e.id}` navigationScroll=`form-${e.id}` position="absolute" inset=0
                   display="flex" flex-direction="column"
@@ -262,6 +263,28 @@ component GoodTime
                         text t("settings.wake_up_time")
                         input type="time" value=wakeUpTime change=setWakeUp aria-label=t("settings.wake_up_time")
                           testId="settings-wake"
+                    // The alarm's sound (LKM-698): chosen and previewed here, kept across launches. An alarm
+                    // itself is set from a time's alarm button on Wake Up or Bed Time, as the footer says.
+                    section testId="settings-alarm"
+                      header
+                        text t("settings.section.alarm")
+                      if alarm.available
+                        row
+                          text t("alarm.sound")
+                          select value=alarmSound change=chooseSound disabled=alarmBusy aria-label=t("alarm.sound")
+                            testId="settings-alarm-sound"
+                            option t("alarm.sound.default") value="default"
+                            option t("alarm.sound.sunrise") value="sunrise"
+                            option t("alarm.sound.chime") value="chime"
+                            option t("alarm.sound.pulse") value="pulse"
+                        if alarmSound != "default"
+                          row
+                            button press=previewSound aria-label=t("alarm.preview_of", sound=(alarmSound == "sunrise" ? t("alarm.sound.sunrise") : (alarmSound == "chime" ? t("alarm.sound.chime") : (alarmSound == "pulse" ? t("alarm.sound.pulse") : t("alarm.sound.default")))))
+                              testId="settings-alarm-preview"
+                              text t("alarm.preview")
+                      footer
+                        text (alarm.available ? `${t("alarm.settings_hint")} ${t("alarm.sound_note")}` : t("alarm.unsupported"))
+                          testId="settings-alarm-note"
       row role="tablist" display=(showIntro ? "none" : "flex")
         button role="tab" aria-controls="panel-wakeup" aria-selected=(nav.tab == "wakeup") press=pick("wakeup")
           testId="tab-wakeup" flex=1
@@ -317,8 +340,9 @@ component Times
             aria-label=t("wakeup.cycles", count=`${r.cycles}`)
 
 // The wake-up alarm's state, on both tabs: where it is set and for when (the system's answer), or
-// why it is not. It says plainly that the alarm is Good Time's, not the Clock app's.
-component AlarmCard
+// why it is not. It says plainly that the alarm is Good Time's, not the Clock app's. The sound is
+// chosen in Settings (LKM-698); with nothing to report, only a one-line hint stays here.
+component AlarmStatus
   props
     alarm: AlarmView
     error: bool
@@ -326,44 +350,30 @@ component AlarmCard
     cancel: action
     settings: action
     prefix: string
-    // The chosen sound, its picker and its preview.
-    sound: string
-    chooseSound: action
-    preview: action
   view
-    column gap=8 padding=16 margin="16px 16px 0px" background-color="gt.card" border-radius=20
-      testId=`${prefix}-alarm-card`
-      if not alarm.available
-        text t("alarm.unsupported") font-size="0.9375rem" color="gt.text2" testId=`${prefix}-alarm-unsupported`
-      else
-        if alarm.scheduled
-          row align-items="center" gap=8
-            image "symbol:icon.alarm" color="gt.highlight" aria-hidden=true
-            text t("alarm.scheduled", date=alarm.label) font-size="1rem" font-weight=600 color="gt.highlight" flex=1
-              testId=`${prefix}-alarm-scheduled`
-          text t("alarm.sound_of", sound=(alarm.sound == "sunrise" ? t("alarm.sound.sunrise") : (alarm.sound == "chime" ? t("alarm.sound.chime") : (alarm.sound == "pulse" ? t("alarm.sound.pulse") : t("alarm.sound.default"))))) font-size="0.9375rem" color="gt.text2"
-            testId=`${prefix}-alarm-sound-scheduled`
-          text t("alarm.owned") font-size="0.8125rem" color="gt.text3"
-          button press=cancel disabled=busy testId=`${prefix}-alarm-cancel`
-            text t("alarm.cancel")
-        else if alarm.auth == "denied"
-          text t("alarm.denied") font-size="0.9375rem" color="gt.text2" testId=`${prefix}-alarm-denied`
-          button press=settings testId=`${prefix}-alarm-settings`
-            text t("alarm.open_settings")
-        else
-          text t("alarm.hint") font-size="0.9375rem" color="gt.text2" testId=`${prefix}-alarm-hint`
-        row align-items="center" gap=12 flex-wrap="wrap"
-          text t("alarm.sound") color="gt.text3" flex="1 1 6rem" min-width=0
-          select value=sound change=chooseSound disabled=busy aria-label=t("alarm.sound")
-            testId=`${prefix}-alarm-sound`
-            option t("alarm.sound.default") value="default"
-            option t("alarm.sound.sunrise") value="sunrise"
-            option t("alarm.sound.chime") value="chime"
-            option t("alarm.sound.pulse") value="pulse"
-          if sound != "default"
-            button press=preview buttonStyle="bordered" aria-label=t("alarm.preview_of", sound=(sound == "sunrise" ? t("alarm.sound.sunrise") : (sound == "chime" ? t("alarm.sound.chime") : (sound == "pulse" ? t("alarm.sound.pulse") : t("alarm.sound.default")))))
-              testId=`${prefix}-alarm-preview`
-              text t("alarm.preview")
-        text t("alarm.sound_note") font-size="0.8125rem" color="gt.text3" testId=`${prefix}-alarm-sound-note`
-        if error or alarm.showError
-          text t("alarm.failed") font-size="0.9375rem" color="gt.text2" role="alert" testId=`${prefix}-alarm-failed`
+    column
+      if alarm.available and not alarm.scheduled and alarm.auth != "denied"
+        text t("alarm.hint") font-size="0.8125rem" color="gt.text3" padding="8px 16px 0px"
+          testId=`${prefix}-alarm-hint`
+      if not alarm.available or alarm.scheduled or alarm.auth == "denied" or error or alarm.showError
+        column gap=8 padding=16 margin="16px 16px 0px" background-color="gt.card" border-radius=20
+          testId=`${prefix}-alarm-card`
+          if not alarm.available
+            text t("alarm.unsupported") font-size="0.9375rem" color="gt.text2" testId=`${prefix}-alarm-unsupported`
+          else
+            if alarm.scheduled
+              row align-items="center" gap=8
+                image "symbol:icon.alarm" color="gt.highlight" aria-hidden=true
+                text t("alarm.scheduled", date=alarm.label) font-size="1rem" font-weight=600 color="gt.highlight" flex=1
+                  testId=`${prefix}-alarm-scheduled`
+              text t("alarm.sound_of", sound=(alarm.sound == "sunrise" ? t("alarm.sound.sunrise") : (alarm.sound == "chime" ? t("alarm.sound.chime") : (alarm.sound == "pulse" ? t("alarm.sound.pulse") : t("alarm.sound.default"))))) font-size="0.9375rem" color="gt.text2"
+                testId=`${prefix}-alarm-sound-scheduled`
+              text t("alarm.owned") font-size="0.8125rem" color="gt.text3"
+              button press=cancel disabled=busy testId=`${prefix}-alarm-cancel`
+                text t("alarm.cancel")
+            else if alarm.auth == "denied"
+              text t("alarm.denied") font-size="0.9375rem" color="gt.text2" testId=`${prefix}-alarm-denied`
+              button press=settings testId=`${prefix}-alarm-settings`
+                text t("alarm.open_settings")
+            if error or alarm.showError
+              text t("alarm.failed") font-size="0.9375rem" color="gt.text2" role="alert" testId=`${prefix}-alarm-failed`

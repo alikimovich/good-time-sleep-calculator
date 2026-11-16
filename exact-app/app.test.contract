@@ -175,3 +175,21 @@ test "where there are no alarms, both tabs say so and offer no alarm button"
   expect tree missing "bedtime-alarm"
   expect tree missing "bedtime-alarm-sound"
   expect sound missing "assets/sounds/alarm-chime.wav"
+  expect tree missing "wakeup-alarm-hint"
+  expect tree missing "bedtime-alarm-hint"
+
+// LKM-698: the alarm's sound is chosen in Settings, not on the result screens. Where there are no
+// alarms, Settings' Alarm section says so and offers no sound to pick.
+test "Settings has an Alarm section; the result screens have no sound picker"
+  tap "intro-continue"
+  clock settle
+  clock data
+  expect tree missing "wakeup-alarm-sound-note"
+  tap "wakeup-settings"
+  clock settle
+  expect tree has "settings-alarm"
+  expect text "settings-alarm-note" == "Wake-up alarms need iOS 26 or later on iPhone or iPad. Set this time in the Clock app instead."
+  expect tree missing "settings-alarm-sound"
+  expect tree missing "settings-alarm-preview"
+  expect tree has "fall-asleep"
+  expect tree has "settings-wake"
