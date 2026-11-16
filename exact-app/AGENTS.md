@@ -77,7 +77,7 @@ through silent mode and Focus with the system's alert and Stop, and Settings > G
 | `tools/wake-alarm-tests.swift`, `.mjs` | The Swift core's tests, run on the Mac: `bun tools/wake-alarm-tests.mjs` (also in `scripts/check`). |
 | `tools/alarm.test.ts` | `alarmView`, `wallClock`, `formatAlarm`. |
 
-**Sound.** The alarm card's Sound picker (`state alarmSound … persist`, on both tabs) offers System default and
+**Sound.** Settings' Alarm section (LKM-698; pushed from either tab's gear) holds the Sound picker (`state alarmSound … persist`), which offers System default and
 Good Time's own tones, Sunrise, Chime and Pulse: `assets/sounds/alarm-<id>.wav`, synthesized from sine waves by
 `tools/alarm-tones.mjs` (no recording, nothing downloaded; 16-bit PCM mono WAV, 8 s, inside both Contract's 10 s
 `sound` limit and Apple's 30 s custom-sound limit). `bun tools/alarm-tones.mjs` rewrites them;
@@ -87,9 +87,19 @@ Good Time's own tones, Sunrise, Chime and Pulse: `assets/sounds/alarm-<id>.wav`,
 session only while something sounds. On set, `WakeAlarmSound.install` copies the tone from the bundle's
 `assets/sounds/` to the app's `Library/Sounds/goodtime-alarm-<id>.wav` and AlarmKit is given
 `AlertConfiguration.AlertSound.named(<that name>)`; a tone that is not there, or an unknown id, rings `.default`, and
-the card says which sound the scheduled alarm actually has ("Sound: …"). A new sound for a set alarm sets it again
+the result screens' alarm card says which sound the scheduled alarm actually has ("Sound: …"). A new sound for a set alarm sets it again
 at the same time (the old one goes only once the new one is scheduled). There is no API to the Clock app's
 ringtones or to Apple Music, and the app says so.
+
+**Where it shows (LKM-698).** The result screens keep the per-time alarm buttons (and Bed Time's "Set alarm for"). With
+nothing to report they show only the one-line hint "Tap an alarm button…"; the card (`AlarmStatus`) appears only for a
+scheduled alarm (when, its sound, Cancel), denied permission, a failure, or no alarms on this device. Settings' Alarm
+section has the picker, Preview (when a tone is chosen) and a footer saying alarms are set from the time buttons;
+where there are no alarms it says only that. A sound change that fails to re-set a scheduled alarm puts "could not be
+set" in that footer too. Leaving Settings (`back`, `follow`, a tab) stops a preview still playing. The Contract tests only
+see the no-alarms answer; the available path (picker, Preview, the sound kept across a relaunch, an alarm set with it)
+is checked on the simulator with `GoodTimeAlarmFixture authorized`:
+`"tap intro-continue" "tap wakeup-settings" "type settings-alarm-sound chime" "tap settings-alarm-preview" "back" "tap wake-5-alarm" "clock +500" "tree"`.
 
 **No snooze, by design.** A countdown (snooze, pre-alert) needs a Live Activity widget extension, which needs its own
 App ID (`<app id>.widgets`) and App Store profile. `@exact/alarms` always adds one, which is why the app does not

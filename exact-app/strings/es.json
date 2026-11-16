@@ -42,5 +42,7 @@
   "alarm.preview": "Escuchar",
   "alarm.preview_of": "Escuchar {sound}",
   "alarm.sound_of": "Sonido: {sound}",
-  "alarm.sound_note": "Tonos propios de Good Time o el sonido de alarma del sistema. Los tonos de la app Reloj y las canciones de Apple Music no están disponibles para otras apps."
+  "alarm.sound_note": "Tonos propios de Good Time o el sonido de alarma del sistema. Los tonos de la app Reloj y las canciones de Apple Music no están disponibles para otras apps.",
+  "settings.section.alarm": "Alarma",
+  "alarm.settings_hint": "Pon una alarma con el botón de alarma junto a una hora de despertar."
 }
