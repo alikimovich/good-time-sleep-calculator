@@ -55,7 +55,7 @@ keyframes rise
 // The intro leaving: it fades and drifts left, the way the arrow and the swipe point.
 keyframes introLeave
   to opacity=0 translate="-48px 0px" animation-timing-function="ease-in"
-// "the best time to wake up" landing beside its time.
+// "the best time to wake up" landing under its time.
 keyframes badgePop
   from opacity=0 scale=0.6
   60% opacity=1 scale=1.08
@@ -183,7 +183,10 @@ component GoodTime
                   column navigationKey=`${e.id}` navigationScroll=`content-${e.id}` position="absolute" inset=0
                     display="flex" flex-direction="column" background-color="gt.background"
                     header display="flex" align-items="center"
-                      text t("wakeup.title") role="heading" aria-level=1 flex=1
+                      // New York italic: ui-serif is the system's serif design; only family and style
+                      // are said, so the large title keeps its size and Dynamic Type.
+                      text t("wakeup.title") role="heading" aria-level=1 flex=1 font-family="ui-serif, serif"
+                        font-style="italic" testId="wakeup-title"
                       button press=openSettings aria-label=t("settings.title") testId="wakeup-settings"
                         :active
                           -exact-press-scale=(still ? 1 : 0.85)
@@ -296,17 +299,20 @@ component Times
           animation=(still ? "none" : `rise 380ms ${120 + i * 70}ms cubic-bezier(0.2, 0.8, 0.2, 1) both`)
           text t("wakeup.cycles", count=`${r.cycles}`) font-size="0.875rem" font-weight=600 color="gt.text4"
             testId=`${prefix}-${r.cycles}-cycles`
-          row align-items="baseline" flex-wrap="wrap" column-gap=8
-            text r.time font="-exact-title1" font-weight=700 color=tone(r.cycles) testId=`${prefix}-${r.cycles}-time`
+          // The alarm button sits at the row's trailing edge; the time takes the rest and wraps there.
+          // The badge goes on its own line below, where it had wrapped beside the button on a phone.
+          row align-items="center" column-gap=8
+            text r.time font="-exact-title1" font-weight=700 color=tone(r.cycles) flex=1 min-width=0
+              overflow-wrap="break-word" testId=`${prefix}-${r.cycles}-time`
             if alarms
               button press=setAlarm(r.hhmm) disabled=busy aria-label=t("alarm.set_for", time=r.time)
-                appearance="none" padding=10 min-width=44 min-height=44 display="flex" align-items="center"
-                justify-content="center" testId=`${prefix}-${r.cycles}-alarm`
+                appearance="none" padding="10px 0px 10px 10px" min-width=44 min-height=44 display="flex"
+                align-items="center" justify-content="flex-end" flex-shrink=0 testId=`${prefix}-${r.cycles}-alarm`
                 image "symbol:icon.alarm" color="gt.highlight"
-            if best and r.cycles == 5
-              text t("wakeup.best_time") font-family="ui-serif, serif" font-style="italic" font-size="1.125rem"
-                color="gt.highlight" testId=`${prefix}-best`
-                animation=(still ? "none" : "badgePop 520ms 480ms ease-out both")
+          if best and r.cycles == 5
+            text t("wakeup.best_time") font-family="ui-serif, serif" font-style="italic" font-size="1.125rem"
+              color="gt.highlight" testId=`${prefix}-best`
+              animation=(still ? "none" : "badgePop 520ms 480ms ease-out both")
           progress value=r.progress accent-color=tone(r.cycles) margin="8px 0px" width="100%"
             aria-label=t("wakeup.cycles", count=`${r.cycles}`)
 
