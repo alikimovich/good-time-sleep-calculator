@@ -44,6 +44,20 @@ The port of the SwiftUI app in `../good-time/`. Screenshots of both: `../docs/sc
 | `tools/typecheck.mjs`, `tools/bun-test.d.ts` | `tsc` on `app.ts` and the unit tests, with Exact's pinned TypeScript and its build's strict options: `bun tools/typecheck.mjs`. |
 | `app.test.contract` | The Contract tests, run on the web, macOS and the iOS Simulator by `../scripts/check`. |
 
+## Titles and backgrounds (LKM-707)
+
+- The three screen titles (Wake Up, Bed Time, Settings) are level-1 headings, so iOS shows them as UIKit large titles.
+  All three use `class=ScreenTitle` (New York italic: `ui-serif`, `font-style: italic`). The style sets only the
+  family and the italic, so each title keeps UIKit's size, weight and Dynamic Type. Section headers, row labels and
+  "the best time" keep their own roles.
+- UIKit sizes the large-title label to the words' advance width, which cuts off an italic's last glyph where it leans
+  past that width ("Up"'s p). `screenTitle(words)` adds a no-break space and a word joiner (U+00A0 U+2060) after the
+  words. UIKit drops trailing spaces of any kind (U+00A0 too) when it sizes the label, so the space alone does
+  nothing; the zero-width joiner keeps the space from trailing. Keep both characters in `app.contract`, not in
+  `strings/*.json`. At the largest accessibility sizes UIKit truncates the long titles, with or without them.
+- Settings uses `gt.background` on its route and on its `list`, as Wake Up and Bed Time do. With no background set,
+  a grouped list's page is the system's grouped grey. The rows keep their native grouped card surfaces.
+
 ## Motion (LKM-651, LKM-703)
 
 Everything that moves is in `app.contract` and is gated on `still` (`exactViewport().prefersReducedMotion`, the

@@ -68,6 +68,20 @@ fn tone(cycles: number): string = `gt.text${7 - cycles}`
 // A bar's fraction, held to 0–1.
 fn share(p: number): number = p > 0 ? min(1, p) : 0
 
+// A screen's title (Wake Up, Bed Time, Settings; LKM-697, LKM-707): New York italic. Only family
+// and style are said, so each keeps the platform title's size, weight and Dynamic Type, and a
+// level-1 heading stays iOS's large title.
+style ScreenTitle
+  font-family = "ui-serif, serif"
+  font-style = "italic"
+// The title's words with a no-break space and a word joiner after them (LKM-707). UIKit's large
+// title sizes its label to the words' advance, so an italic's last glyph, which leans past it, was
+// cut ("Up"'s p). The space gives that ink room; UIKit drops a trailing space of any kind from the
+// label's width, so the word joiner (zero width, not a space) keeps it from trailing. Both are
+// no-break, so the title never wraps on them; they stay out of the strings (en, es, ru), which
+// keep the bare title, and VoiceOver says nothing for them.
+fn screenTitle(words: string): string = `${words}\u{00A0}\u{2060}`
+
 component GoodTime
   state showIntro = true persist
   state timeToFallAsleep = 15 persist
@@ -187,10 +201,8 @@ component GoodTime
                   column navigationKey=`${e.id}` navigationScroll=`content-${e.id}` position="absolute" inset=0
                     display="flex" flex-direction="column" background-color="gt.background"
                     header display="flex" align-items="center"
-                      // New York italic: ui-serif is the system's serif design; only family and style
-                      // are said, so the large title keeps its size and Dynamic Type.
-                      text t("wakeup.title") role="heading" aria-level=1 flex=1 font-family="ui-serif, serif"
-                        font-style="italic" testId="wakeup-title"
+                      text screenTitle(t("wakeup.title")) class=ScreenTitle role="heading" aria-level=1 flex=1
+                        testId="wakeup-title"
                       button press=openSettings aria-label=t("settings.title") testId="wakeup-settings"
                         :active
                           -exact-press-scale=(still ? 1 : 0.85)
@@ -209,7 +221,8 @@ component GoodTime
                 column navigationKey=`${e.id}` navigationScroll=`content-${e.id}` position="absolute" inset=0
                   display="flex" flex-direction="column" background-color="gt.background"
                   header display="flex" align-items="center"
-                    text t("bedtime.title") role="heading" aria-level=1 flex=1
+                    text screenTitle(t("bedtime.title")) class=ScreenTitle role="heading" aria-level=1 flex=1
+                      testId="bedtime-title"
                     button press=openSettings aria-label=t("settings.title") testId="bedtime-settings"
                       :active
                         -exact-press-scale=(still ? 1 : 0.85)
@@ -237,11 +250,16 @@ component GoodTime
                       AlarmStatus(alarm=alarm, error=alarmError, busy=alarmBusy, cancel=cancelAlarm,
                         settings=openAppSettings, prefix="bedtime")
               if e.name == "settings"
+                // The app's own ground, as Wake Up and Bed Time have (LKM-707): unsaid, a grouped
+                // list's route and the list around its cards are the system's grouped grey. The
+                // cards (the rows) keep their own grouped surface.
                 column navigationKey=`${e.id}` navigationScroll=`form-${e.id}` position="absolute" inset=0
-                  display="flex" flex-direction="column"
+                  display="flex" flex-direction="column" background-color="gt.background"
                   header
-                    text t("settings.title") role="heading" aria-level=1
-                  list id=`form-${e.id}` appearance="auto" listStyle="inset-grouped" flex=1 min-height=0 testId="settings"
+                    text screenTitle(t("settings.title")) class=ScreenTitle role="heading" aria-level=1
+                      testId="settings-title"
+                  list id=`form-${e.id}` appearance="auto" listStyle="inset-grouped" flex=1 min-height=0
+                    background-color="gt.background" testId="settings"
                     section
                       header
                         text t("settings.section.sleep_details")
