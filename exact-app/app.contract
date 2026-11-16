@@ -55,7 +55,7 @@ keyframes rise
 // The intro leaving: it fades and drifts left, the way the arrow and the swipe point.
 keyframes introLeave
   to opacity=0 translate="-48px 0px" animation-timing-function="ease-in"
-// "the best time to wake up" landing beside its time.
+// "the best time to wake up" landing under its time.
 keyframes badgePop
   from opacity=0 scale=0.6
   60% opacity=1 scale=1.08
@@ -300,6 +300,7 @@ component Times
           text t("wakeup.cycles", count=`${r.cycles}`) font-size="0.875rem" font-weight=600 color="gt.text4"
             testId=`${prefix}-${r.cycles}-cycles`
           // The alarm button sits at the row's trailing edge; the time takes the rest and wraps there.
+          // The badge goes on its own line below, where it had wrapped beside the button on a phone.
           row align-items="center" column-gap=8
             text r.time font="-exact-title1" font-weight=700 color=tone(r.cycles) flex=1 min-width=0
               overflow-wrap="break-word" testId=`${prefix}-${r.cycles}-time`
