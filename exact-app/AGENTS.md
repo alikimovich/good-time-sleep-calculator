@@ -60,3 +60,37 @@ system's Reduce Motion): with it on, every `animation`, `transition`, exit and p
 Film a motion with the agent: `bun exact.mjs agent ios "tap intro-continue" "screenshot f.png over 600 every 50"`
 (add `"prefer prefers-reduced-motion reduce"` first for the reduced-motion version). The films are in
 `../docs/screenshots/LKM-651/`.
+
+## Wake-up alarm (LKM-696)
+
+A wake-up time sets a real system alarm through Apple's **AlarmKit** (iOS 26 and later): each Wake Up row has an
+alarm button, and Bed Time has "Set alarm for <time>" under its picker. The alarm is Good Time's own. It rings
+through silent mode and Focus with the system's alert and Stop, and Settings > Good Time > Alarms lists it. It is
+**not** an entry in the Clock app, because no public API adds one.
+
+| File | Holds |
+| --- | --- |
+| `modules/apple/WakeAlarmCore.swift` | No AlarmKit, so it compiles on every Apple host. `WakeAlarmPlan.next` is the next future "HH:MM" in a time zone by `Calendar` (midnight, DST gap and overlap). `WakeAlarmController` keeps one alarm: its UUID is stored in `UserDefaults` (`goodtime.wakeAlarm`), it is cancelled only by that UUID, the same time again schedules nothing, a tap while one is in flight is refused, and a new time replaces the old alarm only after the new one is scheduled. A record whose alarm the system no longer has is dropped at the next read. `FixtureWakeAlarmBackend` stands in for AlarmKit under the agent and in tests. |
+| `modules/apple/WakeAlarm.swift` | The module (`native.later` ops `status`, `set`, `cancel`) and the AlarmKit backend: a one-time `.fixed` alarm with no countdown. |
+| `app.ts` | `wakeAlarm`, `setWakeAlarm`, `cancelWakeAlarm`; `alarmView` writes the system's date for the person's region. With no module (the web) it is unsupported. `grants = 'device.alarms purpose.alarms'` writes `NSAlarmKitUsageDescription` from `strings/*.json`. |
+| `app.json` `host.ios.link` | Weak-links AlarmKit, so iOS 17 to 25 still launch. There the module says `unsupported`, and the app says alarms need iOS 26 (no notification stands in for an alarm). |
+| `tools/wake-alarm-tests.swift`, `.mjs` | The Swift core's tests, run on the Mac: `bun tools/wake-alarm-tests.mjs` (also in `scripts/check`). |
+| `tools/alarm.test.ts` | `alarmView`, `wallClock`, `formatAlarm`. |
+
+**No snooze, by design.** A countdown (snooze, pre-alert) needs a Live Activity widget extension, which needs its own
+App ID (`<app id>.widgets`) and App Store profile. `@exact/alarms` always adds one, which is why the app does not
+use that package. Adding snooze later means registering that App ID and profile first.
+
+**Under the agent** nothing reaches AlarmKit. The launch default `GoodTimeAlarmFixture` picks the fixture:
+unset means `unsupported` (as the web and macOS are, so `app.test.contract` passes on every host), and the others
+are `prompt`, `prompt-deny`, `denied`, `authorized` and `failing`. `system` drives the real AlarmKit path on a
+**simulator** only. Never schedule a test alarm on a personal phone.
+
+```sh
+xcrun simctl spawn "Good Time Check" defaults write com.alikimovich.good-time-to-sleep GoodTimeAlarmFixture prompt
+EXACT_SIM="Good Time Check" bun exact.mjs agent ios --reset-storage "tap intro-continue" "tap wake-5-alarm" "clock +500" "tree"
+xcrun simctl spawn "Good Time Check" defaults delete com.alikimovich.good-time-to-sleep GoodTimeAlarmFixture
+```
+
+Still to verify on a real iPhone running iOS 26 or later: the permission prompt's text, the ring through silent
+mode and Focus, Stop, and the alarm leaving the app once stopped.

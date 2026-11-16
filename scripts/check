@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # LKM-648, LKM-649: the project check. Builds the Exact app in exact-app/, runs the unit tests of its math
-# (exact-app/tools/*.test.ts), then its Contract tests on the web, macOS and an iOS Simulator.
+# (exact-app/tools/*.test.ts) and of the wake-up alarm's Swift core (tools/wake-alarm-tests.swift), then its Contract tests on the web, macOS and an iOS Simulator.
 #   scripts/check            # web, macOS and iOS Simulator
 #   scripts/check --web      # web only (about 15 s once the toolchain is built)
 # This is the Forge `check` command for the good-time project. It installs nothing: run scripts/setup first.
@@ -47,8 +47,11 @@ step "TypeScript: type-check app.ts and the unit tests (Exact's pinned tsc and b
 # contract build does not type-check app.ts; Exact's builds do, but this fails fast and also covers tools/*.test.ts.
 bun tools/typecheck.mjs
 
-step "Unit: app.ts's sleep-cycle math (bun test tools/)"
+step "Unit: app.ts's sleep-cycle math and the alarm's view (bun test tools/)"
 bun test tools/
+
+step "Unit: the wake-up alarm's Swift core (dates, permission, one alarm; LKM-696)"
+bun tools/wake-alarm-tests.mjs
 
 step "Web: build and run the Contract tests"
 t=$(date +%s)

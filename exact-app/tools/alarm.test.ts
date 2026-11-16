@@ -1,0 +1,52 @@
+// The wake-up alarm's side in app.ts (LKM-696): what a native reply shows, and the wall clock a row
+// sets an alarm from. The scheduling itself is Swift's: tools/wake-alarm-tests.swift.
+import { describe, expect, test } from 'bun:test';
+import { alarmView, formatAlarm, UNSUPPORTED, wallClock } from '../app.ts';
+
+const at = Date.UTC(2026, 2, 16, 8, 0); // Mon 16 Mar 2026, 08:00 UTC
+
+describe('wallClock', () => {
+  test('is the 24-hour wall clock in the zone', () => {
+    expect(wallClock(at, 'UTC')).toBe('08:00');
+    expect(wallClock(at, 'Europe/Moscow')).toBe('11:00');
+    expect(wallClock(Date.UTC(2026, 2, 16, 0, 5), 'UTC')).toBe('00:05');
+    expect(wallClock(Date.UTC(2026, 2, 16, 23, 59), 'America/Los_Angeles')).toBe('16:59');
+  });
+  test('falls back to the host zone for an unknown one', () => {
+    expect(wallClock(at, 'Not/AZone')).toMatch(/^\d\d:\d\d$/);
+  });
+});
+
+describe('alarmView', () => {
+  test('no reply, or the web, is unsupported', () => {
+    for (const reply of [null, undefined, UNSUPPORTED]) {
+      const v = alarmView(reply, 'en-US', 'UTC');
+      expect(v.available).toBe(false);
+      expect(v.scheduled).toBe(false);
+      expect(v.label).toBe('');
+    }
+  });
+  test('a scheduled alarm shows the day and time the system holds', () => {
+    const v = alarmView({ available: true, auth: 'authorized', scheduled: true, at, hhmm: '08:00', error: '' }, 'en-US', 'UTC');
+    expect(v.scheduled).toBe(true);
+    // ICU writes "Mon, Mar 16, 8:00 AM" on some hosts and "Mon, Mar 16 at 8:00 AM" on others.
+    expect(v.label).toMatch(/^Mon, Mar 16(,| at) 8:00 AM$/);
+    expect(v.time).toBe('8:00 AM');
+    expect(v.hhmm).toBe('08:00');
+  });
+  test('the label is in the person\'s zone and language', () => {
+    expect(formatAlarm(at, 'en-US', 'America/New_York')).toMatch(/^Mon, Mar 16(,| at) 4:00 AM$/);
+    expect(formatAlarm(at, 'ru-RU', 'Europe/Moscow')).toContain('11:00');
+  });
+  test('no success without an instant: scheduled with no time is not scheduled', () => {
+    const v = alarmView({ available: true, auth: 'authorized', scheduled: true, at: 0, hhmm: '08:00', error: '' }, 'en-US', 'UTC');
+    expect(v.scheduled).toBe(false);
+    expect(v.label).toBe('');
+  });
+  test('a refusal carries its error and no alarm', () => {
+    const v = alarmView({ available: true, auth: 'denied', scheduled: false, at: 0, hhmm: '', error: 'denied' }, 'en-US', 'UTC');
+    expect(v.auth).toBe('denied');
+    expect(v.error).toBe('denied');
+    expect(v.scheduled).toBe(false);
+  });
+});

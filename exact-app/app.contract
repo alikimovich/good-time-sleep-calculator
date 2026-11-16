@@ -11,6 +11,8 @@ shape Time
 shape Row
   cycles: number
   time: string
+  // The wall clock, "HH:MM": what a wake-up alarm is set from.
+  hhmm: string
   progress: number
 
 shape Schedule
@@ -20,6 +22,19 @@ shape Schedule
 
 shape Media
   prefersReducedMotion: bool
+
+// The wake-up alarm (LKM-696), as app.ts reads modules/apple/WakeAlarm.swift: AlarmKit's on iOS 26
+// and later, `available` false elsewhere. `label` is its day and time; `error` what the last tap
+// ran into (unsupported, denied, invalid, busy, failed).
+shape AlarmView
+  available: bool
+  auth: string
+  scheduled: bool
+  at: number
+  label: string
+  time: string
+  hhmm: string
+  error: string
 
 // Motion (LKM-651). Every animation and transition below is gated on `still` (the system's
 // Reduce Motion): with it on, the screens change and the controls move without motion.
@@ -61,6 +76,14 @@ component GoodTime
   resource times = schedule(time.utcOffset, wakeUpTime, timeToFallAsleep, sleepCycleLength,
     time.formatLocale, time.timeZone) with time.epochAtZero + now as shape Schedule
 
+  // The app's one wake-up alarm. A set or a cancel answers the alarm the system now holds; the
+  // view shows a time only from that answer, never before it.
+  resource alarm = wakeAlarm(time.formatLocale, time.timeZone) as shape AlarmView
+  mutation alarmSet as shape AlarmView refreshes alarm then alarmAnswered
+  mutation alarmCancelled as shape AlarmView refreshes alarm then alarmCleared
+  state alarmError = ""
+  derive alarmBusy = pending(alarmSet) or pending(alarmCancelled)
+
   task tick mount
     every(30000, step)
   action step
@@ -85,6 +108,20 @@ component GoodTime
     timeToFallAsleep = match parseNumber(v) { case some(n) => n, case none => timeToFallAsleep }
   action setCycle(v: string)
     sleepCycleLength = match parseNumber(v) { case some(n) => n, case none => sleepCycleLength }
+  // Asks for AlarmKit's permission on the first tap; the next `hhmm` after now, in this time zone.
+  action setAlarm(hhmm: string)
+    alarmError = ""
+    send alarmSet = setWakeAlarm(hhmm, time.timeZone, t("alarm.title"), time.epochAtZero + performanceNow(),
+      time.formatLocale)
+  action alarmAnswered
+    alarmError = match alarmSet { case some(r) => r.error, case none => "" }
+  action cancelAlarm
+    alarmError = ""
+    send alarmCancelled = cancelWakeAlarm(time.formatLocale, time.timeZone)
+  action alarmCleared
+    alarmError = ""
+  action openAppSettings
+    openURL("app-settings:")
   action setWakeUp(v: string)
     if v != ""
       wakeUpTime = v
@@ -130,7 +167,10 @@ component GoodTime
                       column padding-bottom=32
                         text t("wakeup.header") font-size="1.125rem" color="gt.highlight" padding="0px 16px 16px"
                           testId="wakeup-header"
-                        Times(rows=times.wake, best=true, prefix="wake", still=still, replay=false)
+                        Times(rows=times.wake, best=true, prefix="wake", still=still, replay=false,
+                          alarms=alarm.available, busy=alarmBusy, setAlarm=setAlarm)
+                        AlarmCard(alarm=alarm, error=alarmError, busy=alarmBusy, cancel=cancelAlarm,
+                          settings=openAppSettings, prefix="wakeup")
                         text t("wakeup.footer") font-size="1rem" color="gt.text2" padding=16 margin="16px 16px 0px"
                           background-color="gt.card" border-radius=20 testId="wakeup-footer"
               if e.name == "bedtime"
@@ -148,13 +188,22 @@ component GoodTime
                         padding="0px 16px 16px" testId="bedtime-header"
                         transform-origin="left center" scale=(bumping ? 1.04 : 1)
                         transition=(still ? "none" : "scale -exact-spring(420, 18, 1)")
-                      Times(rows=times.bed, best=false, prefix="bed", still=still, replay=true)
+                      Times(rows=times.bed, best=false, prefix="bed", still=still, replay=true,
+                        alarms=false, busy=alarmBusy, setAlarm=setAlarm)
                       row align-items="center" justify-content="space-between" gap=12 padding="16px 16px 0px"
                         flex-wrap="wrap"
                         text t("bedtime.datepicker_title") color="gt.text3" flex="1 1 12rem" min-width=0
                         input type="time" value=wakeUpTime change=setWakeUp aria-label=t("bedtime.datepicker_title")
                           testId="bedtime-wake" scale=(bumping ? 1.08 : 1)
                           transition=(still ? "none" : "scale -exact-spring(420, 16, 1)")
+                      if alarm.available
+                        row padding="16px 16px 0px"
+                          button press=setAlarm(wakeUpTime) disabled=alarmBusy buttonStyle="bordered"
+                            testId="bedtime-alarm"
+                            image "symbol:icon.alarm"
+                            text t("alarm.set_for", time=times.wakeUpTime)
+                      AlarmCard(alarm=alarm, error=alarmError, busy=alarmBusy, cancel=cancelAlarm,
+                        settings=openAppSettings, prefix="bedtime")
               if e.name == "settings"
                 column navigationKey=`${e.id}` navigationScroll=`form-${e.id}` position="absolute" inset=0
                   display="flex" flex-direction="column"
@@ -209,6 +258,10 @@ component Times
     // A row keyed by its time too, so a new time (a picked wake-up time) rises in again. Wake Up's
     // times follow the clock every minute, so its rows rise once, when the screen appears.
     replay: bool
+    // Each row sets a wake-up alarm at its time (where the device has alarms).
+    alarms: bool
+    busy: bool
+    setAlarm: action
   view
     column
       for r, i in rows key=(replay ? `${r.cycles}-${r.time}` : `${r.cycles}`)
@@ -218,9 +271,47 @@ component Times
             testId=`${prefix}-${r.cycles}-cycles`
           row align-items="baseline" flex-wrap="wrap" column-gap=8
             text r.time font="-exact-title1" font-weight=700 color=tone(r.cycles) testId=`${prefix}-${r.cycles}-time`
+            if alarms
+              button press=setAlarm(r.hhmm) disabled=busy aria-label=t("alarm.set_for", time=r.time)
+                appearance="none" padding=10 min-width=44 min-height=44 display="flex" align-items="center"
+                justify-content="center" testId=`${prefix}-${r.cycles}-alarm`
+                image "symbol:icon.alarm" color="gt.highlight"
             if best and r.cycles == 5
               text t("wakeup.best_time") font-family="ui-serif, serif" font-style="italic" font-size="1.125rem"
                 color="gt.highlight" testId=`${prefix}-best`
                 animation=(still ? "none" : "badgePop 520ms 480ms ease-out both")
           progress value=r.progress accent-color=tone(r.cycles) margin="8px 0px" width="100%"
             aria-label=t("wakeup.cycles", count=`${r.cycles}`)
+
+// The wake-up alarm's state, on both tabs: where it is set and for when (the system's answer), or
+// why it is not. It says plainly that the alarm is Good Time's, not the Clock app's.
+component AlarmCard
+  props
+    alarm: AlarmView
+    error: string
+    busy: bool
+    cancel: action
+    settings: action
+    prefix: string
+  view
+    column gap=8 padding=16 margin="16px 16px 0px" background-color="gt.card" border-radius=20
+      testId=`${prefix}-alarm-card`
+      if not alarm.available
+        text t("alarm.unsupported") font-size="0.9375rem" color="gt.text2" testId=`${prefix}-alarm-unsupported`
+      else
+        if alarm.scheduled
+          row align-items="center" gap=8
+            image "symbol:icon.alarm" color="gt.highlight" aria-hidden=true
+            text t("alarm.scheduled", date=alarm.label) font-size="1rem" font-weight=600 color="gt.highlight" flex=1
+              testId=`${prefix}-alarm-scheduled`
+          text t("alarm.owned") font-size="0.8125rem" color="gt.text3"
+          button press=cancel disabled=busy testId=`${prefix}-alarm-cancel`
+            text t("alarm.cancel")
+        else if alarm.auth == "denied"
+          text t("alarm.denied") font-size="0.9375rem" color="gt.text2" testId=`${prefix}-alarm-denied`
+          button press=settings testId=`${prefix}-alarm-settings`
+            text t("alarm.open_settings")
+        else
+          text t("alarm.hint") font-size="0.9375rem" color="gt.text2" testId=`${prefix}-alarm-hint`
+        if error == "failed" or error == "invalid"
+          text t("alarm.failed") font-size="0.9375rem" color="gt.text2" role="alert" testId=`${prefix}-alarm-failed`

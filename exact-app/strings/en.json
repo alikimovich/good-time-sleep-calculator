@@ -21,5 +21,16 @@
   "settings.wake_up_time": "Wake up time",
   "settings.section.reminders": "Reminders",
   "settings.bedtime_auto_reminders": "Bedtime auto reminders",
-  "settings.done": "Done"
+  "settings.done": "Done",
+  "alarm.title": "Wake up",
+  "alarm.set_for": "Set alarm for {time}",
+  "alarm.scheduled": "Alarm set for {date}",
+  "alarm.owned": "Good Time's own alarm: stop it from the alert or here. It is not added to the Clock app.",
+  "alarm.cancel": "Cancel alarm",
+  "alarm.hint": "Tap an alarm button to set a wake-up alarm.",
+  "alarm.denied": "Alarms are turned off for Good Time. Turn them on in Settings to set a wake-up alarm.",
+  "alarm.open_settings": "Open Settings",
+  "alarm.failed": "The alarm could not be set. Try again.",
+  "alarm.unsupported": "Wake-up alarms need iOS 26 or later on iPhone or iPad. Set this time in the Clock app instead.",
+  "purpose.alarms": "Good Time sets the wake-up alarm you choose, so it rings at that time."
 }

@@ -16,6 +16,12 @@
       "deviceFamily": [
         "iphone",
         "ipad"
+      ],
+      "link": [
+        "-Xlinker",
+        "-weak_framework",
+        "-Xlinker",
+        "AlarmKit"
       ]
     },
     "macos": {
