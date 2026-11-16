@@ -14,7 +14,7 @@ try {
   const build = spawnSync('xcrun', ['swiftc', '-swift-version', '5', '-module-cache-path', join(dir, 'cache'),
     resolve(here, 'modules/apple/WakeAlarmCore.swift'), join(dir, 'main.swift'), '-o', out], { stdio: 'inherit' });
   if (build.status !== 0) process.exit(build.status ?? 1);
-  const run = spawnSync(out, [], { stdio: 'inherit' });
+  const run = spawnSync(out, [here], { stdio: 'inherit' });
   process.exitCode = run.status ?? 1;
 } finally {
   rmSync(dir, { recursive: true, force: true });

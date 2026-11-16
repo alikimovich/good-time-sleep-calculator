@@ -33,5 +33,14 @@
   "alarm.failed": "The alarm could not be set. Try again.",
   "alarm.unsupported": "Wake-up alarms need iOS 26 or later on iPhone or iPad. Set this time in the Clock app instead.",
   "purpose.alarms": "Good Time sets the wake-up alarm you choose, so it rings at that time.",
-  "alarm.stop": "Stop"
+  "alarm.stop": "Stop",
+  "alarm.sound": "Sound",
+  "alarm.sound.default": "System default",
+  "alarm.sound.sunrise": "Sunrise",
+  "alarm.sound.chime": "Chime",
+  "alarm.sound.pulse": "Pulse",
+  "alarm.preview": "Preview",
+  "alarm.preview_of": "Preview {sound}",
+  "alarm.sound_of": "Sound: {sound}",
+  "alarm.sound_note": "Good Time's own tones, or the system's alarm sound. Ringtones from the Clock app and songs from Apple Music are not available to other apps."
 }

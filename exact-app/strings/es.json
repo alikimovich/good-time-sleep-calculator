@@ -33,5 +33,14 @@
   "alarm.failed": "No se pudo poner la alarma. Inténtalo de nuevo.",
   "alarm.unsupported": "Las alarmas necesitan iOS 26 o posterior en iPhone o iPad. Pon esta hora en la app Reloj.",
   "purpose.alarms": "Good Time pone la alarma que eliges para que suene a esa hora.",
-  "alarm.stop": "Detener"
+  "alarm.stop": "Detener",
+  "alarm.sound": "Sonido",
+  "alarm.sound.default": "Predeterminado del sistema",
+  "alarm.sound.sunrise": "Amanecer",
+  "alarm.sound.chime": "Campanilla",
+  "alarm.sound.pulse": "Pulso",
+  "alarm.preview": "Escuchar",
+  "alarm.preview_of": "Escuchar {sound}",
+  "alarm.sound_of": "Sonido: {sound}",
+  "alarm.sound_note": "Tonos propios de Good Time o el sonido de alarma del sistema. Los tonos de la app Reloj y las canciones de Apple Music no están disponibles para otras apps."
 }

@@ -37,6 +37,14 @@ shape AlarmView
   error: string
   // An error worth a message (not a busy tap, not the denied card's own case).
   showError: bool
+  // The sound the scheduled alarm rings with: "default" (the system's) or a tone's id; "" unscheduled.
+  sound: string
+
+// Good Time's own alarm tones (tools/alarm-tones.mjs makes them): previewed on a tap only, and
+// given to AlarmKit by name (WakeAlarm.swift). There is no API to the Clock app's ringtones or music.
+sound "assets/sounds/alarm-sunrise.wav"
+sound "assets/sounds/alarm-chime.wav"
+sound "assets/sounds/alarm-pulse.wav"
 
 // Motion (LKM-651). Every animation and transition below is gated on `still` (the system's
 // Reduce Motion): with it on, the screens change and the controls move without motion.
@@ -84,6 +92,8 @@ component GoodTime
   mutation alarmSet as shape AlarmView refreshes alarm then alarmAnswered
   mutation alarmCancelled as shape AlarmView refreshes alarm then alarmCleared
   state alarmError = false
+  // The alarm's sound, kept across launches: "default" or a tone's id (app.ts ALARM_SOUNDS).
+  state alarmSound = "default" persist
   derive alarmBusy = pending(alarmSet) or pending(alarmCancelled)
 
   task tick mount
@@ -114,7 +124,20 @@ component GoodTime
   action setAlarm(hhmm: string)
     alarmError = false
     send alarmSet = setWakeAlarm(hhmm, time.timeZone, t("alarm.title"), t("alarm.stop"),
-      time.epochAtZero + performanceNow(), time.formatLocale)
+      time.epochAtZero + performanceNow(), time.formatLocale, alarmSound)
+  // A new sound for a set alarm sets it again, same time, with that sound (replacing it only once
+  // the new one is scheduled); unset, it is the next alarm's sound.
+  action chooseSound(v: string)
+    alarmSound = v
+    if alarm.scheduled and alarm.sound != v and not alarmBusy
+      alarmError = false
+      send alarmSet = setWakeAlarm(alarm.hhmm, time.timeZone, t("alarm.title"), t("alarm.stop"),
+        time.epochAtZero + performanceNow(), time.formatLocale, v)
+  // Only on a tap; under the agent nothing plays (the runner records it).
+  action previewSound
+    stopSounds(group="alarm-preview")
+    if alarmSound != "default"
+      playSound(`assets/sounds/alarm-${alarmSound}.wav`, group="alarm-preview")
   action alarmAnswered
     alarmError = match alarmSet { case some(r) => r.showError, case none => false }
   action cancelAlarm
@@ -172,7 +195,8 @@ component GoodTime
                         Times(rows=times.wake, best=true, prefix="wake", still=still, replay=false,
                           alarms=alarm.available, busy=alarmBusy, setAlarm=setAlarm)
                         AlarmCard(alarm=alarm, error=alarmError, busy=alarmBusy, cancel=cancelAlarm,
-                          settings=openAppSettings, prefix="wakeup")
+                          settings=openAppSettings, prefix="wakeup",
+                          sound=alarmSound, chooseSound=chooseSound, preview=previewSound)
                         text t("wakeup.footer") font-size="1rem" color="gt.text2" padding=16 margin="16px 16px 0px"
                           background-color="gt.card" border-radius=20 testId="wakeup-footer"
               if e.name == "bedtime"
@@ -205,7 +229,8 @@ component GoodTime
                             image "symbol:icon.alarm"
                             text t("alarm.set_for", time=times.wakeUpTime)
                       AlarmCard(alarm=alarm, error=alarmError, busy=alarmBusy, cancel=cancelAlarm,
-                        settings=openAppSettings, prefix="bedtime")
+                        settings=openAppSettings, prefix="bedtime",
+                        sound=alarmSound, chooseSound=chooseSound, preview=previewSound)
               if e.name == "settings"
                 column navigationKey=`${e.id}` navigationScroll=`form-${e.id}` position="absolute" inset=0
                   display="flex" flex-direction="column"
@@ -295,6 +320,10 @@ component AlarmCard
     cancel: action
     settings: action
     prefix: string
+    // The chosen sound, its picker and its preview.
+    sound: string
+    chooseSound: action
+    preview: action
   view
     column gap=8 padding=16 margin="16px 16px 0px" background-color="gt.card" border-radius=20
       testId=`${prefix}-alarm-card`
@@ -306,6 +335,8 @@ component AlarmCard
             image "symbol:icon.alarm" color="gt.highlight" aria-hidden=true
             text t("alarm.scheduled", date=alarm.label) font-size="1rem" font-weight=600 color="gt.highlight" flex=1
               testId=`${prefix}-alarm-scheduled`
+          text t("alarm.sound_of", sound=(alarm.sound == "sunrise" ? t("alarm.sound.sunrise") : (alarm.sound == "chime" ? t("alarm.sound.chime") : (alarm.sound == "pulse" ? t("alarm.sound.pulse") : t("alarm.sound.default"))))) font-size="0.9375rem" color="gt.text2"
+            testId=`${prefix}-alarm-sound-scheduled`
           text t("alarm.owned") font-size="0.8125rem" color="gt.text3"
           button press=cancel disabled=busy testId=`${prefix}-alarm-cancel`
             text t("alarm.cancel")
@@ -315,5 +346,18 @@ component AlarmCard
             text t("alarm.open_settings")
         else
           text t("alarm.hint") font-size="0.9375rem" color="gt.text2" testId=`${prefix}-alarm-hint`
+        row align-items="center" gap=12 flex-wrap="wrap"
+          text t("alarm.sound") color="gt.text3" flex="1 1 6rem" min-width=0
+          select value=sound change=chooseSound disabled=busy aria-label=t("alarm.sound")
+            testId=`${prefix}-alarm-sound`
+            option t("alarm.sound.default") value="default"
+            option t("alarm.sound.sunrise") value="sunrise"
+            option t("alarm.sound.chime") value="chime"
+            option t("alarm.sound.pulse") value="pulse"
+          if sound != "default"
+            button press=preview buttonStyle="bordered" aria-label=t("alarm.preview_of", sound=(sound == "sunrise" ? t("alarm.sound.sunrise") : (sound == "chime" ? t("alarm.sound.chime") : (sound == "pulse" ? t("alarm.sound.pulse") : t("alarm.sound.default")))))
+              testId=`${prefix}-alarm-preview`
+              text t("alarm.preview")
+        text t("alarm.sound_note") font-size="0.8125rem" color="gt.text3" testId=`${prefix}-alarm-sound-note`
         if error or alarm.showError
           text t("alarm.failed") font-size="0.9375rem" color="gt.text2" role="alert" testId=`${prefix}-alarm-failed`

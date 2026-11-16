@@ -31,11 +31,56 @@ enum WakeAlarmLookup: Equatable {
     case unknown
 }
 
+/// The alarm's sound: the system's default or one of Good Time's own tones, bundled as
+/// `assets/sounds/alarm-<id>.wav` (tools/alarm-tones.mjs; app.ts `ALARM_SOUNDS` lists the same ids).
+/// AlarmKit plays a custom sound by file name from the app's main bundle or its `Library/Sounds`; the
+/// tone is copied there under a name of its own, so where the build puts assets does not matter.
+enum WakeAlarmSound {
+    static let systemDefault = "default"
+    static let tones = ["sunrise", "chime", "pulse"]
+
+    /// A requested id the app has; anything else is the system's default.
+    static func normalized(_ id: String?) -> String {
+        guard let id, tones.contains(id) else { return systemDefault }
+        return id
+    }
+
+    /// The name `AlertSound.named` is given, in `Library/Sounds`.
+    static func installedName(_ id: String) -> String { "goodtime-alarm-\(id).wav" }
+
+    /// Puts the tone's file in `library/Sounds` (again when the bundled one changed) and answers its
+    /// name there; nil for the system's default, or when the tone is not in the bundle or cannot be
+    /// copied, so the caller falls back to the default.
+    static func install(_ id: String, bundleRoot: URL, library: URL, files: FileManager = .default) -> String? {
+        let id = normalized(id)
+        guard id != systemDefault else { return nil }
+        let source = bundleRoot.appendingPathComponent("assets/sounds/alarm-\(id).wav")
+        guard let data = try? Data(contentsOf: source), !data.isEmpty else { return nil }
+        let dir = library.appendingPathComponent("Sounds", isDirectory: true)
+        let target = dir.appendingPathComponent(installedName(id))
+        if (try? Data(contentsOf: target)) == data { return installedName(id) }
+        do {
+            try files.createDirectory(at: dir, withIntermediateDirectories: true)
+            try data.write(to: target, options: .atomic)
+            return installedName(id)
+        } catch {
+            return nil
+        }
+    }
+}
+
+/// What the system scheduled: when, and with which sound (the default if the tone was not there).
+struct WakeAlarmScheduled: Equatable {
+    var at: Date
+    var sound: String
+}
+
 protocol WakeAlarmBackend: AnyObject {
     var auth: WakeAlarmAuth { get }
     func requestAuthorization() async -> WakeAlarmAuth
-    /// Schedules a one-time alarm at `at`; returns the date the system holds it for.
-    func schedule(id: UUID, at: Date, title: String, stop: String) async throws -> Date
+    /// Schedules a one-time alarm at `at` with `sound` (a `WakeAlarmSound` id); returns the date the
+    /// system holds it for and the sound it was actually given.
+    func schedule(id: UUID, at: Date, title: String, stop: String, sound: String) async throws -> WakeAlarmScheduled
     /// The system's alarm with this id: `absent` once it rang and was stopped or was removed;
     /// `unknown` when the list could not be read, which never drops the record.
     func lookup(id: UUID) -> WakeAlarmLookup
@@ -47,6 +92,9 @@ struct WakeAlarmRecord: Codable, Equatable {
     var id: UUID
     var at: Date
     var hhmm: String
+    /// The sound it rings with; nil in a record from before sounds, which rang the default.
+    var sound: String?
+    var soundID: String { WakeAlarmSound.normalized(sound) }
 }
 
 protocol WakeAlarmStore: AnyObject {
@@ -102,7 +150,8 @@ struct WakeAlarmSnapshot: Equatable {
 
     var json: [String: Any] {
         ["available": auth != .unsupported, "auth": auth.rawValue, "scheduled": record != nil,
-         "at": record.map { $0.at.timeIntervalSince1970 * 1000 } ?? 0, "hhmm": record?.hhmm ?? "", "error": error]
+         "at": record.map { $0.at.timeIntervalSince1970 * 1000 } ?? 0, "hhmm": record?.hhmm ?? "", "error": error,
+         "sound": record?.soundID ?? ""]
     }
 }
 
@@ -140,22 +189,24 @@ final class WakeAlarmController {
     /// Sets the alarm for the next `hhmm` in `timeZone` after `now`. Asks for permission first when
     /// the person has not been asked. Answers the alarm the system now holds, or the error and the
     /// alarm that was there before (kept on any failure).
-    func set(_ hhmm: String, timeZone: TimeZone, now: Date, title: String, stop: String = "Stop") async -> WakeAlarmSnapshot {
+    func set(_ hhmm: String, timeZone: TimeZone, now: Date, title: String, stop: String = "Stop",
+             sound requested: String = WakeAlarmSound.systemDefault) async -> WakeAlarmSnapshot {
+        let sound = WakeAlarmSound.normalized(requested)
         guard let backend else { return WakeAlarmSnapshot(auth: .unsupported, record: nil, error: "unsupported") }
         if inFlight { return with(status(), error: "busy") }
         inFlight = true
         defer { inFlight = false }
         let current = status()
         guard let target = WakeAlarmPlan.next(hhmm, after: now, timeZone: timeZone) else { return with(current, error: "invalid") }
-        // The same alarm again: nothing new is scheduled.
-        if let record = current.record, record.at == target, record.hhmm == hhmm { return current }
+        // The same alarm again (time and sound): nothing new is scheduled.
+        if let record = current.record, record.at == target, record.hhmm == hhmm, record.soundID == sound { return current }
         var auth = backend.auth
         if auth == .notDetermined { auth = await backend.requestAuthorization() }
         guard auth == .authorized else { return with(status(), error: auth == .unsupported ? "unsupported" : "denied") }
         let id = UUID()
-        let date: Date
+        let scheduled: WakeAlarmScheduled
         do {
-            date = try await backend.schedule(id: id, at: target, title: title, stop: stop)
+            scheduled = try await backend.schedule(id: id, at: target, title: title, stop: stop, sound: sound)
         } catch WakeAlarmBackendError.notAuthorized {
             return with(status(), error: "denied")
         } catch {
@@ -167,7 +218,7 @@ final class WakeAlarmController {
             if backend.cancel(id: id) { return with(status(), error: "failed") }
             // Neither went: keep the new one (the one asked for); the old id stays unreachable.
         }
-        let record = WakeAlarmRecord(id: id, at: date, hhmm: hhmm)
+        let record = WakeAlarmRecord(id: id, at: scheduled.at, hhmm: hhmm, sound: WakeAlarmSound.normalized(scheduled.sound))
         store.record = record
         // The system's answer to `schedule`, not a re-read its list may not have caught up with.
         return WakeAlarmSnapshot(auth: backend.auth, record: record)
@@ -202,6 +253,10 @@ final class FixtureWakeAlarmBackend: WakeAlarmBackend {
     /// Ids whose cancel does not take.
     var stuck: Set<UUID> = []
     private(set) var scheduleCount = 0
+    /// The sound each scheduled alarm was given.
+    private(set) var sounds: [UUID: String] = [:]
+    /// Tones that are not in the bundle: they fall back to the default, as AlarmKit's backend does.
+    var missingTones: Set<String> = []
     private(set) var cancelled: [UUID] = []
     /// Called inside `schedule`, before it answers: a test's second tap lands here.
     var duringSchedule: (() async -> Void)?
@@ -232,13 +287,15 @@ final class FixtureWakeAlarmBackend: WakeAlarmBackend {
         return auth
     }
 
-    func schedule(id: UUID, at: Date, title: String, stop: String) async throws -> Date {
+    func schedule(id: UUID, at: Date, title: String, stop: String, sound: String) async throws -> WakeAlarmScheduled {
         scheduleCount += 1
         if let duringSchedule { await duringSchedule() }
         guard auth == .authorized else { throw WakeAlarmBackendError.notAuthorized }
         if failNext { failNext = false; throw WakeAlarmBackendError.failed("fixture") }
         alarms[id] = at
-        return at
+        let given = missingTones.contains(sound) ? WakeAlarmSound.systemDefault : WakeAlarmSound.normalized(sound)
+        sounds[id] = given
+        return WakeAlarmScheduled(at: at, sound: given)
     }
 
     func lookup(id: UUID) -> WakeAlarmLookup {

@@ -113,6 +113,17 @@ export interface AlarmReply {
   at: number;
   hhmm: string;
   error: string;
+  /** The sound the scheduled alarm rings with (an `ALARM_SOUNDS` id): what the system was given. */
+  sound?: string;
+}
+
+/** The alarm's sounds: the system's default, then Good Time's own tones (assets/sounds/alarm-<id>.wav,
+ * made by tools/alarm-tones.mjs). WakeAlarmCore.swift's `WakeAlarmSound` lists the same ids. */
+export const ALARM_SOUNDS = ['default', 'sunrise', 'chime', 'pulse'];
+
+/** A stored or requested sound as one the app has; anything else is the system's default. */
+export function alarmSound(id: string | null | undefined): string {
+  return ALARM_SOUNDS.includes(String(id)) ? String(id) : 'default';
 }
 
 export type AlarmView = Result<'wakeAlarm'>;
@@ -139,6 +150,7 @@ export function alarmView(reply: Partial<AlarmReply> | null | undefined, locale:
     hhmm: scheduled ? String(r.hhmm) : '',
     error: String(r.error ?? ''),
     showError: alarmErrorShown(String(r.error ?? ''), String(r.auth)),
+    sound: scheduled ? alarmSound(r.sound) : '',
   };
 }
 
@@ -167,8 +179,8 @@ const sources: Sources = {
     native?.watch('alarm');
     return alarmView(await ask(native, { op: 'status' }), locale, timeZone);
   },
-  setWakeAlarm: async ([hhmm, timeZone, title, stop, now, locale], _store, _storage, native) =>
-    alarmView(await ask(native, { op: 'set', hhmm, timeZone, title, stop, now }), locale, timeZone),
+  setWakeAlarm: async ([hhmm, timeZone, title, stop, now, locale, sound], _store, _storage, native) =>
+    alarmView(await ask(native, { op: 'set', hhmm, timeZone, title, stop, now, sound: alarmSound(sound) }), locale, timeZone),
   cancelWakeAlarm: async ([locale, timeZone], _store, _storage, native) =>
     alarmView(await ask(native, { op: 'cancel' }), locale, timeZone),
 };

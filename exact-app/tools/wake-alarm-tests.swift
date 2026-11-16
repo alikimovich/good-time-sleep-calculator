@@ -185,6 +185,69 @@ let utc = tz("UTC")
         store.record = nil
         check(store.record == nil, "and is removed")
     }
+    // The sound (Andrei's follow-up): the chosen tone is what the system is given, and kept.
+    do {
+        let f = FixtureWakeAlarmBackend(auth: .authorized)
+        let c = WakeAlarmController(backend: f, store: MemoryWakeAlarmStore())
+        let s = await c.set("08:00", timeZone: utc, now: now, title: "Wake up", sound: "chime")
+        check(s.record.map { f.sounds[$0.id] } == "chime" && s.record?.soundID == "chime", "the chosen tone is scheduled")
+        check(s.json["sound"] as? String == "chime", "and answered")
+        let again = await c.set("08:00", timeZone: utc, now: now, title: "Wake up", sound: "chime")
+        check(f.scheduleCount == 1 && again.record?.id == s.record?.id, "the same time and tone again schedules nothing")
+        let changed = await c.set("08:00", timeZone: utc, now: now, title: "Wake up", sound: "pulse")
+        check(f.scheduleCount == 2 && changed.record?.soundID == "pulse" && f.alarms.count == 1,
+              "a new tone for the same time replaces the alarm, one alarm left")
+        check(s.record.map { f.cancelled.contains($0.id) } == true, "the old one, by its id")
+    }
+    do {
+        let f = FixtureWakeAlarmBackend(auth: .authorized)
+        let c = WakeAlarmController(backend: f, store: MemoryWakeAlarmStore())
+        let s = await c.set("08:00", timeZone: utc, now: now, title: "Wake up", sound: "../../etc/passwd")
+        check(s.record?.soundID == "default" && s.record.map { f.sounds[$0.id] } == "default", "an unknown sound is the default")
+        let plain = await c.set("09:00", timeZone: utc, now: now, title: "Wake up")
+        check(plain.record?.soundID == "default", "no sound is the default")
+    }
+    do {
+        let f = FixtureWakeAlarmBackend(auth: .authorized)
+        f.missingTones = ["sunrise"]
+        let c = WakeAlarmController(backend: f, store: MemoryWakeAlarmStore())
+        let s = await c.set("08:00", timeZone: utc, now: now, title: "Wake up", sound: "sunrise")
+        check(s.record?.soundID == "default" && s.error == "", "a tone that is not there rings the default, and says so")
+    }
+    // A record from before sounds decodes, as the default.
+    do {
+        let old = #"{"id":"6F9619FF-8B86-D011-B42D-00C04FC964FF","at":795_000_000,"hhmm":"08:00"}"#
+            .replacingOccurrences(of: "_", with: "")
+        let r = try? JSONDecoder().decode(WakeAlarmRecord.self, from: Data(old.utf8))
+        check(r?.hhmm == "08:00" && r?.soundID == "default", "an old record reads as the default sound")
+    }
+    // The tone's file goes to Library/Sounds, under Good Time's own name.
+    do {
+        let files = FileManager.default
+        let root = files.temporaryDirectory.appendingPathComponent("goodtime-sound-\(UUID().uuidString)")
+        let bundle = root.appendingPathComponent("Good Time.app"), library = root.appendingPathComponent("Library")
+        try? files.createDirectory(at: bundle.appendingPathComponent("assets/sounds"), withIntermediateDirectories: true)
+        try? Data("RIFF-chime".utf8).write(to: bundle.appendingPathComponent("assets/sounds/alarm-chime.wav"))
+        let name = WakeAlarmSound.install("chime", bundleRoot: bundle, library: library)
+        check(name == "goodtime-alarm-chime.wav", "installed by name")
+        check((try? Data(contentsOf: library.appendingPathComponent("Sounds/goodtime-alarm-chime.wav"))) == Data("RIFF-chime".utf8),
+              "with the bundled bytes")
+        try? Data("RIFF-chime-2".utf8).write(to: bundle.appendingPathComponent("assets/sounds/alarm-chime.wav"))
+        _ = WakeAlarmSound.install("chime", bundleRoot: bundle, library: library)
+        check((try? Data(contentsOf: library.appendingPathComponent("Sounds/goodtime-alarm-chime.wav"))) == Data("RIFF-chime-2".utf8),
+              "a changed tone is copied again")
+        check(WakeAlarmSound.install("pulse", bundleRoot: bundle, library: library) == nil, "a tone not in the bundle: none (the default)")
+        check(WakeAlarmSound.install("default", bundleRoot: bundle, library: library) == nil, "the default: none")
+        try? files.removeItem(at: root)
+    }
+    // The real tones are in the app's assets.
+    do {
+        let here = URL(fileURLWithPath: CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : FileManager.default.currentDirectoryPath)
+        for tone in WakeAlarmSound.tones {
+            let url = here.appendingPathComponent("assets/sounds/alarm-\(tone).wav")
+            check(((try? Data(contentsOf: url))?.prefix(4)).map { String(decoding: $0, as: UTF8.self) } == "RIFF", "assets/sounds/alarm-\(tone).wav is bundled")
+        }
+    }
     // The launch default's fixtures.
     check(FixtureWakeAlarmBackend.named(nil) == nil, "under the agent, unset is unsupported")
     check(FixtureWakeAlarmBackend.named("prompt")?.auth == .notDetermined, "prompt")

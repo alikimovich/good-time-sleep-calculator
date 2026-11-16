@@ -14,11 +14,12 @@
 //
 // `native.later` requests (app.ts):
 //   {op: "status"}
-//   {op: "set", hhmm: "07:15", timeZone: "Europe/Madrid", title: "Wake up", now: <ms, agent only>}
+//   {op: "set", hhmm: "07:15", timeZone: "Europe/Madrid", title: "Wake up", sound: "chime", now: <ms, agent only>}
 //   {op: "cancel"}
 // Each answers WakeAlarmSnapshot.json. A change says `changed("alarm")`.
 import Foundation
 #if os(iOS)
+import ActivityKit
 import AlarmKit
 import SwiftUI
 #endif
@@ -73,6 +74,7 @@ final class GoodTimeModule: ExactModule {
         let zone = (request["timeZone"] as? String).flatMap(TimeZone.init(identifier:)) ?? .current
         let title = (request["title"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? "Wake up"
         let stop = (request["stop"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? "Stop"
+        let sound = WakeAlarmSound.normalized(request["sound"] as? String)
         let agentNow = (request["now"] as? Double).map { Date(timeIntervalSince1970: $0 / 1000) }
         Task { @MainActor in
             let controller = self.alarm()
@@ -82,7 +84,7 @@ final class GoodTimeModule: ExactModule {
             case "set":
                 // The session's clock under the agent, so a drive repeats; the device's otherwise.
                 let now = self.context.agent ? (agentNow ?? Date()) : Date()
-                let snapshot = await controller.set(hhmm, timeZone: zone, now: now, title: title, stop: stop)
+                let snapshot = await controller.set(hhmm, timeZone: zone, now: now, title: title, stop: stop, sound: sound)
                 reply.send(snapshot.json)
                 self.context.changed("alarm")
             case "cancel":
@@ -124,7 +126,12 @@ final class AlarmKitWakeAlarmBackend: WakeAlarmBackend {
         return auth
     }
 
-    func schedule(id: UUID, at: Date, title: String, stop: String) async throws -> Date {
+    func schedule(id: UUID, at: Date, title: String, stop: String, sound: String) async throws -> WakeAlarmScheduled {
+        // A tone is given by its name in Library/Sounds; one that is not there rings the default.
+        let library = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first
+        let installed = library.flatMap { WakeAlarmSound.install(sound, bundleRoot: Bundle.main.bundleURL, library: $0) }
+        let alertSound: AlertConfiguration.AlertSound = installed.map { .named($0) } ?? .default
+        let given = installed == nil ? WakeAlarmSound.systemDefault : WakeAlarmSound.normalized(sound)
         let text = LocalizedStringResource(String.LocalizationValue(title))
         let alert: AlarmPresentation.Alert
         if #available(iOS 26.1, *) {
@@ -134,11 +141,11 @@ final class AlarmKitWakeAlarmBackend: WakeAlarmBackend {
             alert = AlarmPresentation.Alert(title: text, stopButton: AlarmButton(text: LocalizedStringResource(String.LocalizationValue(stop)), textColor: .white, systemImageName: "stop.circle"))
         }
         let attributes = AlarmAttributes<GoodTimeAlarmMetadata>(presentation: AlarmPresentation(alert: alert), metadata: nil, tintColor: .orange)
-        let configuration = AlarmManager.AlarmConfiguration<GoodTimeAlarmMetadata>.alarm(schedule: .fixed(at), attributes: attributes)
+        let configuration = AlarmManager.AlarmConfiguration<GoodTimeAlarmMetadata>.alarm(schedule: .fixed(at), attributes: attributes, sound: alertSound)
         do {
             let alarm = try await manager.schedule(id: id, configuration: configuration)
-            if case .fixed(let date)? = alarm.schedule { return date }
-            return at
+            if case .fixed(let date)? = alarm.schedule { return WakeAlarmScheduled(at: date, sound: given) }
+            return WakeAlarmScheduled(at: at, sound: given)
         } catch {
             if manager.authorizationState != .authorized { throw WakeAlarmBackendError.notAuthorized }
             throw WakeAlarmBackendError.failed(String(describing: error))
