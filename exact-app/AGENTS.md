@@ -44,22 +44,23 @@ The port of the SwiftUI app in `../good-time/`. Screenshots of both: `../docs/sc
 | `tools/typecheck.mjs`, `tools/bun-test.d.ts` | `tsc` on `app.ts` and the unit tests, with Exact's pinned TypeScript and its build's strict options: `bun tools/typecheck.mjs`. |
 | `app.test.contract` | The Contract tests, run on the web, macOS and the iOS Simulator by `../scripts/check`. |
 
-## Motion (LKM-651)
+## Motion (LKM-651, LKM-703)
 
 Everything that moves is in `app.contract` and is gated on `still` (`exactViewport().prefersReducedMotion`, the
 system's Reduce Motion): with it on, every `animation`, `transition`, exit and press scale is `none`/1.
 
 | What | How |
 | --- | --- |
-| Intro → Wake Up | The intro leaves with `-exact-exit-animation` (`introLeave`: fade, drift left; filmed on the web; on iOS the intro and Wake Up share one route, which swaps at once), then Wake Up's time rows rise in. The screen and the tab bar themselves don't animate in: an entrance that holds its first frame left the tab bar off screen and the settings button hidden until the clock moved (macOS tests). |
-| Time rows | Each row rises in with a 70 ms stagger; "the best time to wake up" pops in (`badgePop`). Bed Time's rows are keyed by their time too, so a picked wake-up time replays them; Wake Up's are not, since they follow the clock every minute. |
-| Tab change | The panel fades and springs up (`-exact-spring(320, 30, 1)`); the tab's icon springs larger where the tab bar is ours (web, macOS; iOS uses UIKit's tab bar). |
+| Cycle bars (LKM-703) | **The only content entrance.** When a result screen is shown (the intro left, a launch, a tab selected), every bar fills at once from the track's leading edge to its fraction: keyframes `fill` (the fill's `translate` from -100%), 300 ms, `cubic-bezier(0.23, 1, 0.32, 1)` (a strong ease-out), no stagger. The fill's `width` is its fraction from the first frame and the track (`overflow="hidden"`) clips it, so the first painted frame is an empty track and the geometry never moves. `Times`' `fill` prop is `not still and nav.tab == <this tab>`: it turns on when the tab is shown, which plays the fill once; a picked time, the clock, the alarm, Settings and back leave it on, so rows (keyed by cycles only) update in place without replaying it. The bar is drawn (a 4-point capsule track in `-exact-fill`, the fill in the row's tone, `role="progressbar"`), as UIProgressView draws one, since a native `progress` eases only by UIKit's own curve and not on first show. |
+| Time rows, "the best time" | No entrance (LKM-703): they are in place at their final geometry and opacity from the first frame. (LKM-651's `rise` stagger and `badgePop` are gone.) |
+| Intro → Wake Up | The intro leaves with `-exact-exit-animation` (`introLeave`: fade, drift left; filmed on the web; on iOS the intro and Wake Up share one route, which swaps at once); Wake Up's bars then fill. The screen and the tab bar don't animate in: an entrance that holds its first frame left the tab bar off screen and the settings button hidden until the clock moved (macOS tests). |
+| Tab change | The panel switches at once (LKM-703 dropped its fade and slide-up); the tab's icon springs larger where the tab bar is ours (web, macOS; iOS uses UIKit's tab bar, with its own selection motion). |
 | Time picker | A picked time sets `bumping` for 140 ms (task `unbump`): the picker and the Bed Time header spring to a slightly larger scale and back. |
 | Presses | `:active` `-exact-press-scale` on the intro arrow, the settings buttons and the tabs (where they are custom nodes). |
 
 Film a motion with the agent: `bun exact.mjs agent ios "tap intro-continue" "screenshot f.png over 600 every 50"`
 (add `"prefer prefers-reduced-motion reduce"` first for the reduced-motion version). The films are in
-`../docs/screenshots/LKM-651/`.
+`../docs/screenshots/LKM-651/` and, for the bar fill, `../docs/screenshots/LKM-703/`.
 
 ## Wake-up alarm (LKM-696)
 
