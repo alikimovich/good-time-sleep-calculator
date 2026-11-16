@@ -65,6 +65,8 @@ routes nav
 
 // The colour of a row's time: 6 cycles is TextColor1, 3 cycles TextColor4 (`Color("TextColor\(7 - cycles)")`).
 fn tone(cycles: number): string = `gt.text${7 - cycles}`
+// A bar's fraction, held to 0–1.
+fn share(p: number): number = p > 0 ? min(1, p) : 0
 
 component GoodTime
   state showIntro = true persist
@@ -338,10 +340,10 @@ component Times
           // the row's tone) so its fill can ease in: the native bar's own easing is UIKit's and is
           // skipped on first show. The fill's width is its fraction at once; only its translate moves.
           view role="progressbar" aria-label=t("wakeup.cycles", count=`${r.cycles}`)
-            aria-valuenow=`${r.progress > 0 ? min(1, r.progress) : 0}` aria-valuemin="0" aria-valuemax="1"
+            aria-valuenow=`${round(share(r.progress) * 100)}` aria-valuemin="0" aria-valuemax="100"
             height=4 border-radius=2 margin="8px 0px" width="100%" overflow="hidden" background-color="-exact-fill"
             testId=`${prefix}-${r.cycles}-bar`
-            view width=`${(r.progress > 0 ? min(1, r.progress) : 0) * 100}%` height="100%" border-radius=2
+            view width=`${share(r.progress) * 100}%` height="100%" border-radius=2
               background-color=tone(r.cycles) testId=`${prefix}-${r.cycles}-fill`
               animation=(fill ? "fill 300ms cubic-bezier(0.23, 1, 0.32, 1) both" : "none")
 
