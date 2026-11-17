@@ -68,8 +68,13 @@ line taller (it was 64 points tall, adding about 15 points above and below the t
 "Recommended" (`wakeup.recommended`, New York italic, `gt.highlight`) beside it on the time's baseline; where there
 is no room (large text, a long translation) it wraps under the time at full size, and the alarm button stays,
 centred on the two lines together. The button's `right` and the line's `padding-right` are physical (Exact has no
-inline-end inset): a right-to-left locale would need them mirrored; none ships today. Views
-of both tabs: `../docs/screenshots/LKM-713/`.
+inline-end inset): a right-to-left locale would need them mirrored; none ships today.
+Bed Time's wake-time row (`bedtime-controls`) holds the picker, leading, and "Set alarm" (`alarm.set`), trailing, on
+one line; the button's spoken name is `alarm.set_for` with the picked time, it sets exactly `wakeUpTime`, and the
+alarm card says the date and time the system scheduled. The picker's visible label ("Choose time you want to wake
+up:") shows only where there is no button (no alarms), and stays its spoken name. At large text "Set alarm" wraps
+under the picker. The picker scales from its `left` edge when it leads (physical, as above). Views of both tabs:
+`../docs/screenshots/LKM-713/`.
 
 ## Motion (LKM-651, LKM-703)
 
@@ -92,7 +97,7 @@ Film a motion with the agent: `bun exact.mjs agent ios "tap intro-continue" "scr
 ## Wake-up alarm (LKM-696)
 
 A wake-up time sets a real system alarm through Apple's **AlarmKit** (iOS 26 and later): each Wake Up row has an
-alarm button, and Bed Time has "Set alarm for <time>" under its picker. The alarm is Good Time's own. It rings
+alarm button, and Bed Time has "Set alarm" beside its picker (LKM-713). The alarm is Good Time's own. It rings
 through silent mode and Focus with the system's alert and Stop, and Settings > Good Time > Alarms lists it. It is
 **not** an entry in the Clock app, because no public API adds one.
 
@@ -119,7 +124,7 @@ the result screens' alarm card says which sound the scheduled alarm actually has
 at the same time (the old one goes only once the new one is scheduled). There is no API to the Clock app's
 ringtones or to Apple Music, and the app says so.
 
-**Where it shows (LKM-698).** The result screens keep the per-time alarm buttons (and Bed Time's "Set alarm for"). With
+**Where it shows (LKM-698).** The result screens keep the per-time alarm buttons (and Bed Time's "Set alarm"). With
 nothing to report they show only the one-line hint "Tap an alarm button…"; the card (`AlarmStatus`) appears only for a
 scheduled alarm (when, its sound, Cancel), denied permission, a failure, or no alarms on this device. Settings' Alarm
 section has the picker, Preview (when a tone is chosen) and a footer saying alarms are set from the time buttons;

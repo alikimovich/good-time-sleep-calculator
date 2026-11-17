@@ -173,6 +173,9 @@ test "where there are no alarms, both tabs say so and offer no alarm button"
   clock data
   expect tree has "bedtime-alarm-unsupported"
   expect tree missing "bedtime-alarm"
+  // LKM-713: with no alarm button, the wake-time row keeps its label beside the picker.
+  expect text "bedtime-wake-label" == "Choose time you want to wake up:"
+  expect tree has "bedtime-wake"
   expect tree missing "bedtime-alarm-sound"
   expect sound missing "assets/sounds/alarm-chime.wav"
   expect tree missing "wakeup-alarm-hint"

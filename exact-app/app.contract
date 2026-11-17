@@ -235,18 +235,27 @@ component GoodTime
                         transition=(still ? "none" : "scale -exact-spring(420, 18, 1)")
                       Times(rows=times.bed, best=false, prefix="bed", fill=(not still and nav.tab == "bedtime"),
                         alarms=false, busy=alarmBusy, setAlarm=setAlarm)
-                      row align-items="center" justify-content="space-between" gap=12 padding="16px 16px 0px"
-                        flex-wrap="wrap"
-                        text t("bedtime.datepicker_title") color="gt.text3" flex="1 1 12rem" min-width=0
+                      // The wake-time control row (LKM-713). With alarms: the picker leading and "Set alarm"
+                      // trailing on one line (the header above already says the chosen time, so the long
+                      // label stays only as the picker's spoken name, and the button's visible words drop
+                      // the time it would repeat; its spoken name keeps it). The button sets exactly the
+                      // picked `wakeUpTime`; the card below says the date and time the system scheduled.
+                      // Where there is no room (large text, a long translation) the button wraps under the
+                      // picker. Without alarms there is no button, and the label stays beside the picker.
+                      row align-items="center" justify-content="space-between" column-gap=12 row-gap=8
+                        padding="16px 16px 0px" flex-wrap="wrap" testId="bedtime-controls"
+                        if not alarm.available
+                          text t("bedtime.datepicker_title") color="gt.text3" flex="1 1 12rem" min-width=0
+                            testId="bedtime-wake-label"
                         input type="time" value=wakeUpTime change=setWakeUp aria-label=t("bedtime.datepicker_title")
                           testId="bedtime-wake" scale=(bumping ? 1.08 : 1)
+                          transform-origin=(alarm.available ? "left center" : "center")
                           transition=(still ? "none" : "scale -exact-spring(420, 16, 1)")
-                      if alarm.available
-                        row padding="16px 16px 0px"
+                        if alarm.available
                           button press=setAlarm(wakeUpTime) disabled=alarmBusy buttonStyle="bordered"
-                            testId="bedtime-alarm"
+                            aria-label=t("alarm.set_for", time=times.wakeUpTime) testId="bedtime-alarm"
                             image "symbol:icon.alarm"
-                            text t("alarm.set_for", time=times.wakeUpTime)
+                            text t("alarm.set")
                       AlarmStatus(alarm=alarm, error=alarmError, busy=alarmBusy, cancel=cancelAlarm,
                         settings=openAppSettings, prefix="bedtime")
               if e.name == "settings"

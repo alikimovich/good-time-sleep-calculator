@@ -24,6 +24,7 @@
   "settings.done": "Done",
   "alarm.title": "Wake up",
   "alarm.set_for": "Set alarm for {time}",
+  "alarm.set": "Set alarm",
   "alarm.scheduled": "Alarm set for {date}",
   "alarm.owned": "Good Time's own alarm: stop it from the alert or here. It is not added to the Clock app.",
   "alarm.cancel": "Cancel alarm",
