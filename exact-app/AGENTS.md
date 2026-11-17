@@ -49,7 +49,7 @@ The port of the SwiftUI app in `../good-time/`. Screenshots of both: `../docs/sc
 - The three screen titles (Wake Up, Bed Time, Settings) are level-1 headings, so iOS shows them as UIKit large titles.
   All three use `class=ScreenTitle` (New York italic: `ui-serif`, `font-style: italic`). The style sets only the
   family and the italic, so each title keeps UIKit's size, weight and Dynamic Type. Section headers, row labels and
-  "the best time" keep their own roles.
+  "Recommended" keep their own roles.
 - UIKit sizes the large-title label to the words' advance width, which cuts off an italic's last glyph where it leans
   past that width ("Up"'s p). `screenTitle(words)` adds a no-break space and a word joiner (U+00A0 U+2060) after the
   words. UIKit drops trailing spaces of any kind (U+00A0 too) when it sizes the label, so the space alone does
@@ -57,6 +57,24 @@ The port of the SwiftUI app in `../good-time/`. Screenshots of both: `../docs/sc
   `strings/*.json`. At the largest accessibility sizes UIKit truncates the long titles, with or without them.
 - Settings uses `gt.background` on its route and on its `list`, as Wake Up and Bed Time do. With no background set,
   a grouped list's page is the system's grouped grey. The rows keep their native grouped card surfaces.
+
+## Cycle rows (LKM-713)
+
+Both tabs' rows are one component, `Times`, with one geometry: the cycles label, the time line right under it, the
+bar 8 points below (iPhone 17 Pro, default text: every row 86 points tall on both tabs). The time line is as tall as
+its text. Wake Up's alarm button is placed over the line's trailing edge (`position="absolute"`, centred with
+`top="50%" translate="0px -50%"`, 44×44) and the line keeps 52 points of room for it, so its hit area can't make the
+line taller (it was 64 points tall, adding about 15 points above and below the time). The 5-cycle wake-up time has
+"Recommended" (`wakeup.recommended`, New York italic, `gt.highlight`) beside it on the time's baseline; where there
+is no room (large text, a long translation) it wraps under the time at full size, and the alarm button stays,
+centred on the two lines together. The button's `right` and the line's `padding-right` are physical (Exact has no
+inline-end inset): a right-to-left locale would need them mirrored; none ships today.
+Bed Time's wake-time row (`bedtime-controls`) holds the picker, leading, and "Set alarm" (`alarm.set`), trailing, on
+one line; the button's spoken name is `alarm.set_for` with the picked time, it sets exactly `wakeUpTime`, and the
+alarm card says the date and time the system scheduled. The picker's visible label ("Choose time you want to wake
+up:") shows only where there is no button (no alarms), and stays its spoken name. At large text "Set alarm" wraps
+under the picker. The picker scales from its `left` edge when it leads (physical, as above). Views of both tabs:
+`../docs/screenshots/LKM-713/`.
 
 ## Motion (LKM-651, LKM-703)
 
@@ -66,7 +84,7 @@ system's Reduce Motion): with it on, every `animation`, `transition`, exit and p
 | What | How |
 | --- | --- |
 | Cycle bars (LKM-703) | **The only content entrance.** When a result screen is shown (the intro left, a launch, a tab selected), every bar fills at once from the track's leading edge to its fraction: keyframes `fill` (the fill's `translate` from -100%), 300 ms, `cubic-bezier(0.23, 1, 0.32, 1)` (a strong ease-out), no stagger. The fill's `width` is its fraction from the first frame and the track (`overflow="hidden"`) clips it, so the first painted frame is an empty track and the geometry never moves. `Times`' `fill` prop is `not still and nav.tab == <this tab>`: it turns on when the tab is shown, which plays the fill once; a picked time, the clock, the alarm, Settings and back leave it on, so rows (keyed by cycles only) update in place without replaying it. The bar is drawn (a 4-point capsule track in `-exact-fill`, the fill in the row's tone, `role="progressbar"`), as UIProgressView draws one, since a native `progress` eases only by UIKit's own curve and not on first show. |
-| Time rows, "the best time" | No entrance (LKM-703): they are in place at their final geometry and opacity from the first frame. (LKM-651's `rise` stagger and `badgePop` are gone.) |
+| Time rows, "Recommended" | No entrance (LKM-703): they are in place at their final geometry and opacity from the first frame. (LKM-651's `rise` stagger and `badgePop` are gone.) |
 | Intro → Wake Up | The intro leaves with `-exact-exit-animation` (`introLeave`: fade, drift left; filmed on the web; on iOS the intro and Wake Up share one route, which swaps at once); Wake Up's bars then fill. The screen and the tab bar don't animate in: an entrance that holds its first frame left the tab bar off screen and the settings button hidden until the clock moved (macOS tests). |
 | Tab change | The panel switches at once (LKM-703 dropped its fade and slide-up); the tab's icon springs larger where the tab bar is ours (web, macOS; iOS uses UIKit's tab bar, with its own selection motion). |
 | Time picker | A picked time sets `bumping` for 140 ms (task `unbump`): the picker and the Bed Time header spring to a slightly larger scale and back. |
@@ -79,7 +97,7 @@ Film a motion with the agent: `bun exact.mjs agent ios "tap intro-continue" "scr
 ## Wake-up alarm (LKM-696)
 
 A wake-up time sets a real system alarm through Apple's **AlarmKit** (iOS 26 and later): each Wake Up row has an
-alarm button, and Bed Time has "Set alarm for <time>" under its picker. The alarm is Good Time's own. It rings
+alarm button, and Bed Time has "Set alarm" beside its picker (LKM-713). The alarm is Good Time's own. It rings
 through silent mode and Focus with the system's alert and Stop, and Settings > Good Time > Alarms lists it. It is
 **not** an entry in the Clock app, because no public API adds one.
 
@@ -106,7 +124,7 @@ the result screens' alarm card says which sound the scheduled alarm actually has
 at the same time (the old one goes only once the new one is scheduled). There is no API to the Clock app's
 ringtones or to Apple Music, and the app says so.
 
-**Where it shows (LKM-698).** The result screens keep the per-time alarm buttons (and Bed Time's "Set alarm for"). With
+**Where it shows (LKM-698).** The result screens keep the per-time alarm buttons (and Bed Time's "Set alarm"). With
 nothing to report they show only the one-line hint "Tap an alarm button…"; the card (`AlarmStatus`) appears only for a
 scheduled alarm (when, its sound, Cancel), denied permission, a failure, or no alarms on this device. Settings' Alarm
 section has the picker, Preview (when a tone is chosen) and a footer saying alarms are set from the time buttons;
