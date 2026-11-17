@@ -129,7 +129,11 @@ nothing to report they show only the one-line hint "Tap an alarm button…"; the
 scheduled alarm (when, its sound, Cancel), denied permission, a failure, or no alarms on this device. Settings' Alarm
 section has the picker, Preview (when a tone is chosen) and a footer saying alarms are set from the time buttons;
 where there are no alarms it says only that. A sound change that fails to re-set a scheduled alarm puts "could not be
-set" in that footer too. Leaving Settings (`back`, `follow`, a tab) stops a preview still playing. The Contract tests only
+set" in that footer too. Preview is the section's own `button` row (LKM-714), not a `button` inside a `row`: as a
+grouped list's button row it is UIKit's standard cell, its title on the cell's margin with Sound's label, its whole
+row the hit area, its text `AccentColor`. A native `button` inside a custom `row` adds UIButton's content inset, and
+its text started 12 points further in (iPhone 17 Pro: Sound at 33, Preview at 45; now both 33, also at
+accessibility-extra-large). Views: `../docs/screenshots/LKM-714/`. Leaving Settings (`back`, `follow`, a tab) stops a preview still playing. The Contract tests only
 see the no-alarms answer; the available path (picker, Preview, the sound kept across a relaunch, an alarm set with it)
 is checked on the simulator with `GoodTimeAlarmFixture authorized`:
 `"tap intro-continue" "tap wakeup-settings" "type settings-alarm-sound chime" "tap settings-alarm-preview" "back" "tap wake-5-alarm" "clock +500" "tree"`.
