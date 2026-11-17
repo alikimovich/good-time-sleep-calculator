@@ -305,11 +305,13 @@ component GoodTime
                             option t("alarm.sound.sunrise") value="sunrise"
                             option t("alarm.sound.chime") value="chime"
                             option t("alarm.sound.pulse") value="pulse"
+                        // Preview is the row itself (LKM-714), a grouped list's button row: UIKit's own cell,
+                        // whose title starts at the cell's margin as Sound's label does. A button inside a
+                        // `row` is a UIButton in a custom cell and adds its own content inset before the text.
                         if alarmSound != "default"
-                          row
-                            button press=previewSound aria-label=t("alarm.preview_of", sound=(alarmSound == "sunrise" ? t("alarm.sound.sunrise") : (alarmSound == "chime" ? t("alarm.sound.chime") : (alarmSound == "pulse" ? t("alarm.sound.pulse") : t("alarm.sound.default")))))
-                              testId="settings-alarm-preview"
-                              text t("alarm.preview")
+                          button press=previewSound aria-label=t("alarm.preview_of", sound=(alarmSound == "sunrise" ? t("alarm.sound.sunrise") : (alarmSound == "chime" ? t("alarm.sound.chime") : (alarmSound == "pulse" ? t("alarm.sound.pulse") : t("alarm.sound.default")))))
+                            testId="settings-alarm-preview"
+                            text t("alarm.preview") color="AccentColor"
                       footer
                         // A sound change that could not re-set a scheduled alarm says so beside the picker.
                         text (not alarm.available ? t("alarm.unsupported") : ((alarmError or alarm.showError) ? `${t("alarm.failed")} ${t("alarm.settings_hint")} ${t("alarm.sound_note")}` : `${t("alarm.settings_hint")} ${t("alarm.sound_note")}`))
