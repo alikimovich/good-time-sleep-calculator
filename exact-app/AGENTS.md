@@ -66,7 +66,9 @@ its text. Wake Up's alarm button is placed over the line's trailing edge (`posit
 `top="50%" translate="0px -50%"`, 44×44) and the line keeps 52 points of room for it, so its hit area can't make the
 line taller (it was 64 points tall, adding about 15 points above and below the time). The 5-cycle wake-up time has
 "Recommended" (`wakeup.recommended`, New York italic, `gt.highlight`) beside it on the time's baseline; where there
-is no room (large text, a long translation) it wraps under the time at full size, and the alarm button stays. Views
+is no room (large text, a long translation) it wraps under the time at full size, and the alarm button stays,
+centred on the two lines together. The button's `right` and the line's `padding-right` are physical (Exact has no
+inline-end inset): a right-to-left locale would need them mirrored; none ships today. Views
 of both tabs: `../docs/screenshots/LKM-713/`.
 
 ## Motion (LKM-651, LKM-703)

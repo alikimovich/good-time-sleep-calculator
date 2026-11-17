@@ -195,7 +195,7 @@ test "Settings has an Alarm section; the result screens have no sound picker"
   expect tree has "fall-asleep"
   expect tree has "settings-wake"
 
-// LKM-703: rows and "the best time" are in place at once; each row's cycle bar is a drawn track
+// LKM-703: rows and "Recommended" are in place at once; each row's cycle bar is a drawn track
 // and fill (the fill eases in when a result screen shows, unless Reduce Motion is on). A new time
 // and the clock update the rows in place: the bars stay, with their fractions.
 test "cycle bars: every row has its bar, through a picked time and the clock, either motion setting"
