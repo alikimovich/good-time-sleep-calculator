@@ -48,7 +48,7 @@ sound "assets/sounds/alarm-pulse.wav"
 
 // Motion (LKM-651, LKM-703). Every animation and transition below is gated on `still` (the
 // system's Reduce Motion): with it on, the screens change and the controls move without motion.
-// Rows, labels and "the best time" appear in place at once; the only content entrance is the
+// Rows, labels and "Recommended" appear in place at once; the only content entrance is the
 // cycle bars filling (`fill`), once each time a result screen is shown.
 // A cycle bar's fill sliding in from the track's leading edge to its fraction (it is clipped by
 // the track, so its first frame is an empty track).
@@ -341,19 +341,24 @@ component Times
         column padding="8px 16px" testId=`${prefix}-${r.cycles}`
           text t("wakeup.cycles", count=`${r.cycles}`) font-size="0.875rem" font-weight=600 color="gt.text4"
             testId=`${prefix}-${r.cycles}-cycles`
-          // The alarm button sits at the row's trailing edge; the time takes the rest and wraps there.
-          // The badge goes on its own line below, where it had wrapped beside the button on a phone.
-          row align-items="center" column-gap=8
-            text r.time font="-exact-title1" font-weight=700 color=tone(r.cycles) flex=1 min-width=0
+          // The time line (LKM-713): the time, then "Recommended" beside it on its baseline (on the
+          // next line when there is no room, as at the largest text sizes). It is as tall as its text
+          // on both tabs, so a row's label, time and bar sit as Bed Time's do. The alarm button is
+          // placed over the line's trailing edge, centred on it, and the line keeps room for it: its
+          // 44-point hit area never makes the line taller.
+          row position="relative" align-items="baseline" flex-wrap="wrap" column-gap=8
+            padding-right=(alarms ? 52 : 0)
+            text r.time font="-exact-title1" font-weight=700 color=tone(r.cycles) min-width=0
               overflow-wrap="break-word" testId=`${prefix}-${r.cycles}-time`
+            if best and r.cycles == 5
+              text t("wakeup.recommended") font-family="ui-serif, serif" font-style="italic" font-size="1.125rem"
+                color="gt.highlight" testId=`${prefix}-best`
             if alarms
               button press=setAlarm(r.hhmm) disabled=busy aria-label=t("alarm.set_for", time=r.time)
-                appearance="none" padding="10px 0px 10px 10px" min-width=44 min-height=44 display="flex"
-                align-items="center" justify-content="flex-end" flex-shrink=0 testId=`${prefix}-${r.cycles}-alarm`
+                appearance="none" position="absolute" right=0 top="50%" translate="0px -50%"
+                width=44 height=44 padding=0 display="flex"
+                align-items="center" justify-content="flex-end" testId=`${prefix}-${r.cycles}-alarm`
                 image "symbol:icon.alarm" color="gt.highlight"
-          if best and r.cycles == 5
-            text t("wakeup.best_time") font-family="ui-serif, serif" font-style="italic" font-size="1.125rem"
-              color="gt.highlight" testId=`${prefix}-best`
           // The cycle bar, drawn as UIProgressView draws one (a 4-point capsule track, the fill in
           // the row's tone) so its fill can ease in: the native bar's own easing is UIKit's and is
           // skipped on first show. The fill's width is its fraction at once; only its translate moves.

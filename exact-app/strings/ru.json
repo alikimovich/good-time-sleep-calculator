@@ -7,7 +7,7 @@
   "wakeup.title": "Когда проснуться",
   "wakeup.header": "Лучшее время чтобы проснуться, если пойти спать прямо сейчас",
   "wakeup.cycles": "{count} ↻",
-  "wakeup.best_time": "лучшее время",
+  "wakeup.recommended": "Рекомендуется",
   "wakeup.footer": "Чтобы выспаться, необходимо спать 5-6 ↻ циклов сна.",
   "bedtime.title": "Когда спать",
   "bedtime.header": "Чтобы легче проснуться в {time}",

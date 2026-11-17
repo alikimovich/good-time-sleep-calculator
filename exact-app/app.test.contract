@@ -23,7 +23,7 @@ test "wake-up times: 15 minutes to fall asleep, then 3 to 6 cycles of 90 minutes
   expect text "wake-4-time" == "4:15 AM"
   expect text "wake-5-time" == "5:45 AM"
   expect text "wake-6-time" == "7:15 AM"
-  expect text "wake-best" == "the best time to wake up"
+  expect text "wake-best" == "Recommended"
   expect state times.wake.0 .progress == 0.5
   expect state times.wake.3 .progress == 1
 
@@ -108,7 +108,7 @@ test "Spanish: the strings and the region's time"
   clock data
   expect text "wakeup-header" == "¿Te vas a la cama? Intenta despertarte a una de estas horas para sentirte mejor mañana"
   expect text "wake-5-cycles" == "5 CICLOS"
-  expect text "wake-best" == "la mejor hora para despertar"
+  expect text "wake-best" == "Recomendada"
   expect text "wake-5-time" == "5:45"
   tap "tab-bedtime"
   clock data
@@ -120,7 +120,7 @@ test "Russian: the strings and a 24-hour clock"
   tap "intro-continue"
   clock data
   expect text "wake-5-cycles" == "5 ↻"
-  expect text "wake-best" == "лучшее время"
+  expect text "wake-best" == "Рекомендуется"
   expect text "wake-6-time" == "07:15"
   tap "tab-bedtime"
   clock data
