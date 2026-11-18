@@ -69,12 +69,24 @@ line taller (it was 64 points tall, adding about 15 points above and below the t
 is no room (large text, a long translation) it wraps under the time at full size, and the alarm button stays,
 centred on the two lines together. The button's `right` and the line's `padding-right` are physical (Exact has no
 inline-end inset): a right-to-left locale would need them mirrored; none ships today.
-Bed Time's wake-time row (`bedtime-controls`) holds the picker, leading, and "Set alarm" (`alarm.set`), trailing, on
-one line; the button's spoken name is `alarm.set_for` with the picked time, it sets exactly `wakeUpTime`, and the
-alarm card says the date and time the system scheduled. The picker's visible label ("Choose time you want to wake
-up:") shows only where there is no button (no alarms), and stays its spoken name. At large text "Set alarm" wraps
-under the picker. The picker scales from its `left` edge when it leads (physical, as above). Views of both tabs:
+Bed Time's wake-time picker and alarm button are in its subtitle (LKM-724, below). Views of both tabs:
 `../docs/screenshots/LKM-713/`.
+
+## Bed Time's subtitle is the wake-time control (LKM-724)
+
+The subtitle (`bedtime-header`) reads "If you want to wake up at" (`bedtime.header_lead`) and then the time picker
+(`bedtime-wake`, spoken "Choose time you want to wake up:") where the static time was, and, where the device has
+alarms, an icon-only alarm button (`bedtime-alarm`, spoken `alarm.set_for` with the picked time; it sets exactly
+`wakeUpTime`) on the same line, its icon on the content's trailing edge as Wake Up's are. The old control row under
+the rows ("Set alarm" pill, picker, "Choose time…" label) is gone. The subtitle keeps its geometry: the line is as
+tall as its text, the picker's 36-point pill takes 7 points back above and below (`margin="-7px 0px"`), and the button
+is placed over the line (absolute, centred, 44×44), so neither moves it (iPhone 17 Pro: the subtitle at y 168, 38
+points with its bottom padding, the first row at 206, before and after). The button's hit area reaches across the
+16-point screen margin (`right=-16`, its icon `flex-end` inside 16 points of padding), so the line keeps only 28
+points of room and English with a "10:30 AM" picker fits one line on a 375-point iPhone SE. Where there is no room
+(large text; on a 375-point screen, Spanish and Russian with a 12-hour picker) the picker wraps under the words and
+the button centres on both lines, as Wake Up's does beside a wrapped "Recommended". `right` and `padding-right` are
+physical, as on Wake Up. Views: `../docs/screenshots/LKM-724/`.
 
 ## Motion (LKM-651, LKM-703)
 
@@ -87,7 +99,7 @@ system's Reduce Motion): with it on, every `animation`, `transition`, exit and p
 | Time rows, "Recommended" | No entrance (LKM-703): they are in place at their final geometry and opacity from the first frame. (LKM-651's `rise` stagger and `badgePop` are gone.) |
 | Intro → Wake Up | The intro leaves with `-exact-exit-animation` (`introLeave`: fade, drift left; filmed on the web; on iOS the intro and Wake Up share one route, which swaps at once); Wake Up's bars then fill. The screen and the tab bar don't animate in: an entrance that holds its first frame left the tab bar off screen and the settings button hidden until the clock moved (macOS tests). |
 | Tab change | The panel switches at once (LKM-703 dropped its fade and slide-up); the tab's icon springs larger where the tab bar is ours (web, macOS; iOS uses UIKit's tab bar, with its own selection motion). |
-| Time picker | A picked time sets `bumping` for 140 ms (task `unbump`): the picker and the Bed Time header spring to a slightly larger scale and back. |
+| Time picker | A picked time sets `bumping` for 140 ms (task `unbump`): the Bed Time picker springs to a slightly larger scale and back (LKM-724: the subtitle's words, which no longer change, stay still). |
 | Presses | `:active` `-exact-press-scale` on the intro arrow, the settings buttons and the tabs (where they are custom nodes). |
 
 Film a motion with the agent: `bun exact.mjs agent ios "tap intro-continue" "screenshot f.png over 600 every 50"`
@@ -97,7 +109,7 @@ Film a motion with the agent: `bun exact.mjs agent ios "tap intro-continue" "scr
 ## Wake-up alarm (LKM-696)
 
 A wake-up time sets a real system alarm through Apple's **AlarmKit** (iOS 26 and later): each Wake Up row has an
-alarm button, and Bed Time has "Set alarm" beside its picker (LKM-713). The alarm is Good Time's own. It rings
+alarm button, and Bed Time has one beside the picker in its subtitle (LKM-724). The alarm is Good Time's own. It rings
 through silent mode and Focus with the system's alert and Stop, and Settings > Good Time > Alarms lists it. It is
 **not** an entry in the Clock app, because no public API adds one.
 
@@ -124,7 +136,7 @@ the result screens' alarm card says which sound the scheduled alarm actually has
 at the same time (the old one goes only once the new one is scheduled). There is no API to the Clock app's
 ringtones or to Apple Music, and the app says so.
 
-**Where it shows (LKM-698).** The result screens keep the per-time alarm buttons (and Bed Time's "Set alarm"). With
+**Where it shows (LKM-698).** The result screens keep the per-time alarm buttons (and Bed Time's, in its subtitle). With
 nothing to report they show only the one-line hint "Tap an alarm button…"; the card (`AlarmStatus`) appears only for a
 scheduled alarm (when, its sound, Cancel), denied permission, a failure, or no alarms on this device. Settings' Alarm
 section has the picker, Preview (when a tone is chosen) and a footer saying alarms are set from the time buttons;
