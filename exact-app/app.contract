@@ -229,33 +229,35 @@ component GoodTime
                       image "symbol:icon.settings"
                   scroll id=`content-${e.id}` flex=1 min-height=0
                     column padding-bottom=16
-                      text t("bedtime.header", time=times.wakeUpTime) font-size="1.125rem" color="gt.highlight"
-                        padding="0px 16px 16px" testId="bedtime-header"
-                        transform-origin="left center" scale=(bumping ? 1.04 : 1)
-                        transition=(still ? "none" : "scale -exact-spring(420, 18, 1)")
+                      // The subtitle is the wake-time control (LKM-724): its words, then the picker where the
+                      // time was, then (with alarms) an icon-only alarm button on the content's trailing edge,
+                      // as Wake Up's rows have. The line is as tall as its text, as the static subtitle was:
+                      // the picker's pill (36 points) gives back 7 points above and below (negative margins),
+                      // and the button is placed over the line (absolute, centred, 44×44), so neither moves
+                      // the subtitle or the rows. Its icon ends on the content edge, as Wake Up's do; its hit
+                      // area reaches across the 16-point screen margin, so the line keeps only 28 points of
+                      // room for it and the words, an "10:30 AM" picker and the button fit one line on a
+                      // 375-point iPhone. Where there is no room (large text, a long translation on a narrow
+                      // screen) the picker wraps under the words.
+                      column padding="0px 16px 16px" testId="bedtime-header"
+                        row position="relative" align-items="center" flex-wrap="wrap" column-gap=4 row-gap=8
+                          padding-right=(alarm.available ? 28 : 0)
+                          text t("bedtime.header_lead") font-size="1.125rem" color="gt.highlight" min-width=0
+                            testId="bedtime-header-lead"
+                          input type="time" value=wakeUpTime change=setWakeUp aria-label=t("bedtime.datepicker_title")
+                            testId="bedtime-wake" margin="-7px 0px" scale=(bumping ? 1.08 : 1)
+                            transform-origin="left center"
+                            transition=(still ? "none" : "scale -exact-spring(420, 16, 1)")
+                          if alarm.available
+                            button press=setAlarm(wakeUpTime) disabled=alarmBusy
+                              aria-label=t("alarm.set_for", time=times.wakeUpTime) appearance="none"
+                              position="absolute" right=-16 top="50%" translate="0px -50%" width=44 height=44
+                              padding="0px 16px 0px 0px" box-sizing="border-box" display="flex" align-items="center"
+                              justify-content="flex-end"
+                              testId="bedtime-alarm"
+                              image "symbol:icon.alarm" color="gt.highlight"
                       Times(rows=times.bed, best=false, prefix="bed", fill=(not still and nav.tab == "bedtime"),
                         alarms=false, busy=alarmBusy, setAlarm=setAlarm)
-                      // The wake-time control row (LKM-713). With alarms: the picker leading and "Set alarm"
-                      // trailing on one line (the header above already says the chosen time, so the long
-                      // label stays only as the picker's spoken name, and the button's visible words drop
-                      // the time it would repeat; its spoken name keeps it). The button sets exactly the
-                      // picked `wakeUpTime`; the card below says the date and time the system scheduled.
-                      // Where there is no room (large text, a long translation) the button wraps under the
-                      // picker. Without alarms there is no button, and the label stays beside the picker.
-                      row align-items="center" justify-content="space-between" column-gap=12 row-gap=8
-                        padding="16px 16px 0px" flex-wrap="wrap" testId="bedtime-controls"
-                        if not alarm.available
-                          text t("bedtime.datepicker_title") color="gt.text3" flex="1 1 12rem" min-width=0
-                            testId="bedtime-wake-label"
-                        input type="time" value=wakeUpTime change=setWakeUp aria-label=t("bedtime.datepicker_title")
-                          testId="bedtime-wake" scale=(bumping ? 1.08 : 1)
-                          transform-origin=(alarm.available ? "left center" : "center")
-                          transition=(still ? "none" : "scale -exact-spring(420, 16, 1)")
-                        if alarm.available
-                          button press=setAlarm(wakeUpTime) disabled=alarmBusy buttonStyle="bordered"
-                            aria-label=t("alarm.set_for", time=times.wakeUpTime) testId="bedtime-alarm"
-                            image "symbol:icon.alarm"
-                            text t("alarm.set")
                       AlarmStatus(alarm=alarm, error=alarmError, busy=alarmBusy, cancel=cancelAlarm,
                         settings=openAppSettings, prefix="bedtime")
               if e.name == "settings"

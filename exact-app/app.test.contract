@@ -38,7 +38,8 @@ test "bed times: waking at 8:00, the default, 6 cycles first"
   tap "intro-continue"
   tap "tab-bedtime"
   clock data
-  expect text "bedtime-header" == "If you want to wake up at 8:00 AM"
+  expect text "bedtime-header-lead" == "If you want to wake up at"
+  expect state times.wakeUpTime == "8:00 AM"
   expect text "bed-6-time" == "10:45 PM"
   expect text "bed-5-time" == "12:15 AM"
   expect text "bed-4-time" == "1:45 AM"
@@ -50,7 +51,8 @@ test "a new wake-up time on Bed Time moves the bed times and is kept"
   tap "tab-bedtime"
   type "bedtime-wake" "06:30"
   clock data
-  expect text "bedtime-header" == "If you want to wake up at 6:30 AM"
+  expect text "bedtime-header-lead" == "If you want to wake up at"
+  expect state times.wakeUpTime == "6:30 AM"
   expect text "bed-6-time" == "9:15 PM"
   reload
   clock data
@@ -112,7 +114,8 @@ test "Spanish: the strings and the region's time"
   expect text "wake-5-time" == "5:45"
   tap "tab-bedtime"
   clock data
-  expect text "bedtime-header" == "Si quieres despertar a las 8:00"
+  expect text "bedtime-header-lead" == "Si quieres despertar a las"
+  expect state times.wakeUpTime == "8:00"
 
 test "Russian: the strings and a 24-hour clock"
   locale "ru-RU"
@@ -124,7 +127,8 @@ test "Russian: the strings and a 24-hour clock"
   expect text "wake-6-time" == "07:15"
   tap "tab-bedtime"
   clock data
-  expect text "bedtime-header" == "Чтобы легче проснуться в 08:00"
+  expect text "bedtime-header-lead" == "Чтобы легче проснуться в"
+  expect state times.wakeUpTime == "08:00"
   expect text "bed-6-time" == "22:45"
 
 test "motion: a picked wake-up time springs the picker and settles; the screens settle in place"
@@ -142,7 +146,8 @@ test "motion: a picked wake-up time springs the picker and settles; the screens 
   clock settle
   clock data
   expect text "bed-6-time" == "9:15 PM"
-  expect text "bedtime-header" == "If you want to wake up at 6:30 AM"
+  expect text "bedtime-header-lead" == "If you want to wake up at"
+  expect state times.wakeUpTime == "6:30 AM"
 
 test "reduced motion: nothing springs, and the app works the same"
   prefer prefers-reduced-motion reduce
@@ -173,9 +178,11 @@ test "where there are no alarms, both tabs say so and offer no alarm button"
   clock data
   expect tree has "bedtime-alarm-unsupported"
   expect tree missing "bedtime-alarm"
-  // LKM-713: with no alarm button, the wake-time row keeps its label beside the picker.
-  expect text "bedtime-wake-label" == "Choose time you want to wake up:"
+  // LKM-724: the picker is in the subtitle, where the time was; the old control row is gone.
+  expect tree has "bedtime-header-lead"
   expect tree has "bedtime-wake"
+  expect tree missing "bedtime-controls"
+  expect tree missing "bedtime-wake-label"
   expect tree missing "bedtime-alarm-sound"
   expect sound missing "assets/sounds/alarm-chime.wav"
   expect tree missing "wakeup-alarm-hint"
