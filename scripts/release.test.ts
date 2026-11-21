@@ -1,7 +1,7 @@
 // LKM-650: unit tests of the release job (scripts/release.ts), with fake git, Exact, fastlane and Apple.
 // Run: bun test scripts/release.test.ts (the pinned Bun: ~/.bun-1.4.2/bin/bun).
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import {
@@ -9,6 +9,7 @@ import {
   archiveEnv,
   type AppleStatus,
   assertOutsideRepo,
+  claimReleaseTarget,
   type Deps,
   distributionIdentities,
   fastlaneArgs,
@@ -259,6 +260,8 @@ function fakeDeps(): Fake {
       fake.calls.push(`export ${sha.slice(0, 7)}`);
       mkdirSync(dest, { recursive: true });
       writeFileSync(join(dest, "release.json"), `{"marketing_version":"1.1.0","uses_non_exempt_encryption":false}`);
+      mkdirSync(join(dest, "exact-app"), { recursive: true });
+      writeFileSync(join(dest, "exact-app", "app.contract"), "");
     },
     async archive(r, settings) {
       fake.calls.push(`archive ${r.build_number} ${r.short_sha} ${settings.marketingVersion}`);
@@ -342,6 +345,38 @@ describe("release", () => {
     expect(r.paths.dsyms).toEndWith("GoodTime.dSYMs");
     expect(existsSync(r.paths.source)).toBe(false);
     expect(JSON.parse(readFileSync(r.paths.receipt, "utf8")).status).toBe("ready");
+  });
+
+  test("takes over a release target whose crate claim names another app directory", async () => {
+    // Round 1 of LKM-771: an ad-hoc archive in /tmp/lkm771-arch/exact-app used the release target, and Exact
+    // (scripts/cargo-check.mjs claimTargetCrates) then refused build 16 because that directory still existed.
+    const other = join(dir, "lkm771-arch", "exact-app");
+    mkdirSync(other, { recursive: true });
+    writeFileSync(join(other, "app.contract"), "");
+    const target = join(dir, "exact-release-target");
+    const record = join(target, ".exact-crates", "exact-app");
+    mkdirSync(join(target, ".exact-crates"), { recursive: true });
+    writeFileSync(record, `${realpathSync(other)}\n`);
+    const deps = fakeDeps();
+    deps.apple = [READY];
+    const archive = deps.archive;
+    deps.archive = async (r, s, log) => {
+      // What Exact checks: a holder that still exists and is not this build's app directory is refused.
+      const holder = readFileSync(record, "utf8").trim();
+      const app = realpathSync(join(r.paths.source, "exact-app"));
+      if (holder !== app && existsSync(join(holder, "app.contract"))) throw Error(`${target} (CARGO_TARGET_DIR) holds the crates exact-app-* of the app in ${holder}`);
+      return archive(r, s, log);
+    };
+    const r = await release(opts({ target }), deps);
+    expect(r.status).toBe("ready");
+    expect(deps.calls).toContain("archive 5 0123456 1.1.0");
+    expect(readFileSync(record, "utf8")).toBe(`${join(realpathSync(dir), "builds", "5", "src", "exact-app")}\n`);
+    // The other app keeps its files; only the record changed. A record already naming the build is left alone.
+    expect(existsSync(join(other, "app.contract"))).toBe(true);
+    const app = join(dir, "builds", "5", "src", "exact-app");
+    mkdirSync(app, { recursive: true });
+    expect(claimReleaseTarget(target, app)).toEqual([]);
+    expect(claimReleaseTarget(join(dir, "no-target"), app)).toEqual([]);
   });
 
   test("a commit that is already ready is not built again unless forced", async () => {
