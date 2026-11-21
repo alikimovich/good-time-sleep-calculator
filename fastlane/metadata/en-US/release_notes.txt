@@ -1,0 +1,6 @@
+Good Time is rebuilt from the ground up, with a new look in light and dark mode.
+
+• Wake-up alarms: tap the alarm button beside a wake-up time to set a real alarm for it (iOS 26 or later).
+• Choose the alarm sound: the system sound or Good Time's own tones, with a preview.
+• Bed Time: pick your wake-up time right in the header.
+• Spanish language support.
