@@ -500,3 +500,23 @@ describe("fastlane", () => {
     expect(JSON.parse(proc.stdout.toString())).toEqual({ max: 999, builds: 450, pages: 3 });
   });
 });
+
+describe("App Store metadata", () => {
+  const LOCALES = ["en-US", "es-ES", "es-MX", "ru"];
+  const meta = (locale: string, file: string) =>
+    readFileSync(join(ROOT, "fastlane", "metadata", locale, file), "utf8").trim();
+
+  test("keywords fit 100 bytes in every locale (Cyrillic is 2 bytes a letter)", () => {
+    for (const locale of LOCALES) expect(Buffer.byteLength(meta(locale, "keywords.txt"))).toBeLessThanOrEqual(100);
+  });
+
+  test("descriptions claim only the cycle counts the app shows (exact-app/app.ts CYCLES)", () => {
+    const cycles = readFileSync(join(ROOT, "exact-app", "app.ts"), "utf8").match(/const CYCLES = \[([\d, ]+)\]/)![1];
+    const [min, max] = [cycles.split(",")[0].trim(), cycles.split(",").at(-1)!.trim()];
+    for (const locale of LOCALES) {
+      const ranges = [...meta(locale, "description.txt").matchAll(/(\d)(?: to | a |–)(\d)/g)];
+      expect(ranges.length).toBeGreaterThan(0);
+      for (const [, from, to] of ranges) expect([from, to]).toEqual([min, max]);
+    }
+  });
+});

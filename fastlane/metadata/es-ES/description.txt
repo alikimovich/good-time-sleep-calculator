@@ -3,10 +3,10 @@ Good Time te ayuda a despertar entre ciclos de sueño y no en medio de uno, para
 El sueño se divide en ciclos de unos 90 minutos, y una buena noche tiene cinco o seis. Good Time los cuenta por ti.
 
 DESPERTAR
-¿Te vas a la cama ahora? Mira a qué horas despertar después de 1 a 6 ciclos completos, contando desde que te duermes. La hora de 5 ciclos aparece como recomendada.
+¿Te vas a la cama ahora? Mira a qué horas despertar después de 3 a 6 ciclos completos, contando desde que te duermes. La hora de 5 ciclos aparece como recomendada.
 
 ACOSTARSE
-Elige la hora a la que tienes que levantarte y mira cuándo acostarte para dormir de 1 a 6 ciclos completos.
+Elige la hora a la que tienes que levantarte y mira cuándo acostarte para dormir de 3 a 6 ciclos completos.
 
 ALARMAS PARA DESPERTAR
 Toca el botón de alarma junto a cualquier hora de despertar para poner una alarma del sistema a esa hora. Suena con el aviso del sistema, y desde ahí la detienes. Elige el sonido en Ajustes: el sonido de alarma del sistema o uno de los tonos de Good Time (Amanecer, Campanilla, Pulso), y escúchalo antes. Las alarmas necesitan iOS 26 o posterior.

@@ -3,10 +3,10 @@ Good Time helps you wake up between sleep cycles instead of in the middle of one
 A night's sleep is made of cycles of about 90 minutes, and a good night has five or six of them. Good Time does the counting for you.
 
 WAKE UP
-Going to bed now? See the times to wake up after 1 to 6 full cycles, counted from when you'll fall asleep. The 5-cycle time is marked as recommended.
+Going to bed now? See the times to wake up after 3 to 6 full cycles, counted from when you'll fall asleep. The 5-cycle time is marked as recommended.
 
 BED TIME
-Pick the time you need to be up and see when to go to bed for 1 to 6 full cycles.
+Pick the time you need to be up and see when to go to bed for 3 to 6 full cycles.
 
 WAKE-UP ALARMS
 Tap the alarm button beside any wake-up time to set a real system alarm for it. It rings with the system alert, and you can stop it there. Choose the sound in Settings: the system alarm sound or one of Good Time's own tones (Sunrise, Chime, Pulse), with a preview. Alarms need iOS 26 or later.
