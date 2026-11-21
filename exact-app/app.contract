@@ -1,7 +1,7 @@
 // Good Time: the view. app.ts does the sleep-cycle math and writes the times.
 // Ported from the SwiftUI app in ../good-time: an intro shown until the person moves on,
 // then two tabs (Wake Up, Bed Time), each pushing Settings. Colours are the asset catalog's,
-// in app.tamber; strings are good-time/*.lproj's, in strings/.
+// in app.forma; strings are good-time/*.lproj's, in strings/.
 shape Time
   epochAtZero: number
   utcOffset: number

@@ -1,23 +1,24 @@
 <!-- exact:begin (exact new writes this block; bun exact.mjs update rewrites it) -->
 # exact-app: an Exact app
 
-`app.contract` is the view, `app.ts` its data module, `app.test.contract` its tests, `app.json`
-the manifest: set its `app.name` and `app.id` before the first build. The app uses the exact2
-checkout at `../../exact` by path (`EXACT2` overrides it).
+Run `bun exact.mjs --help` first to create `.exact/checkout`; set `EXACT=<checkout>` if needed.
 
-This file is already in your instructions. Start from the nearest pattern: `bun exact.mjs
-pattern` lists them and `pattern <name>` writes one, tested. ../../exact/docs/start-here-site.md (a site) or
-../../exact/docs/start-here.md is the only required reading. `bun exact.mjs contract vocab <name>` answers a
+`app.contract` is the view, `app.ts` the data module, `app.test.contract` the tests, `app.json`
+the manifest: set `app.name` and `app.id` before building. The app uses Exact at
+`.exact/checkout` by path (`EXACT` overrides it).
+
+Start from the nearest pattern: `bun exact.mjs
+pattern` lists them and `pattern <name>` writes one, tested. .exact/checkout/docs/start-here-site.md (a site) or
+.exact/checkout/docs/start-here.md is the only required reading. `bun exact.mjs contract vocab <name>` answers a
 name (none: the card); `bun exact.mjs docs <heading words>` a guide's
 section. Run `bun exact.mjs verify` when the features work, and `verify ios|android` at the end for a
-phone app. When an iPhone app is ready for the person to try, run `bun exact.mjs share` and give
-them the link it prints; run it again after each change they should see. `bun exact.mjs help` lists the verbs, and your own in app.json `"commands"`.
-`bun exact.mjs update` refreshes files. A native verb (`ios`, `mac`, `linux`, `android`,
-`windows`) names its platform in app.json the first time it runs and builds it in a generated
-workspace; `update --without <platform>` stops it.
-`bun ../../exact/scripts/exact.mjs setup --check` names what a native build lacks.
-Shared data: `exact new <path> --snapback`, or `bun exact.mjs snapback` here.
-Install `snapback4@0.4.33` above; ../../exact/snapback4/README.md has setup and server commands.
+phone app. When an iPhone app is ready to try, run `bun exact.mjs share` and send its link;
+repeat for each change the person should see. `bun exact.mjs help` lists the verbs, including
+app.json's `"commands"`.
+`bun exact.mjs update` refreshes files. Native verbs (`ios`, `mac`, `linux`, `android`, `windows`)
+name their platform in app.json on first use and build in a generated workspace;
+`update --without <platform>` stops shipping it.
+`bun .exact/checkout/scripts/exact.mjs setup --check` names what a native build lacks (`--platform ios --device` for a phone's: `share`, `ios --device`).
 
 Generated, so don't edit: `exact.mjs` and this block.
 
@@ -37,7 +38,7 @@ The port of the SwiftUI app in `../good-time/`. Screenshots of both: `../docs/sc
 | --- | --- |
 | `app.contract` | The view: the intro (shown until the arrow or a left swipe; `showIntro`, persisted), the Wake Up and Bed Time tabs, Settings (pushed from either tab). Settings are root `state … persist`, under the SwiftUI app's `@AppStorage` names. |
 | `app.ts` | The sleep-cycle math, as the Swift views do it: `wakeUpTimes`, `bedTimes`, `progressPercentage`, `wakeUpInstant`, and `formatClock` (DateFormatter's `.short` time, via `Intl`'s `timeStyle: 'short'`). The `schedule` source answers both tabs' rows. |
-| `app.tamber` | The asset catalog's colours (`gt.*`, light and dark), the accent, and the tab and settings icons (SF Symbols on Apple, `assets/icons/*.svg` elsewhere). |
+| `app.forma` | The asset catalog's colours (`gt.*`, light and dark), the accent, and the tab and settings icons (SF Symbols on Apple, `assets/icons/*.svg` elsewhere). |
 | `strings/{en,es,ru}.json` | The `Localizable.strings`, with `%d`/`%@` as `{count}`/`{time}`. |
 | `assets/icon-1024.png` | The app icon (`AppIcon.appiconset`). |
 | `tools/sleep.test.ts` | Unit tests of the math: `bun test tools/`. |

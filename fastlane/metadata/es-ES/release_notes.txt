@@ -1,0 +1,6 @@
+Good Time se ha rehecho desde cero, con un diseño nuevo en modo claro y oscuro.
+
+• Alarmas para despertar: toca el botón de alarma junto a una hora de despertar para poner una alarma de verdad (iOS 26 o posterior).
+• Elige el sonido de la alarma: el del sistema o los tonos de Good Time, y escúchalos antes.
+• Acostarse: elige la hora de despertar en el propio encabezado.
+• Ahora en español.

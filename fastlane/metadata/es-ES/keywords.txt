@@ -1,0 +1,1 @@
+dormir,sueño,calculadora,ciclo,despertador,alarma,despertar,acostarse,descanso,siesta,noche,rem

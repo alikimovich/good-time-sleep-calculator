@@ -123,3 +123,47 @@ First build: **Good Time 1.1.0 (5)**, commit `10a3e33` (LKM-650 branch, the app 
 `c582b3b`: upload accepted, processing `VALID`, internal state `IN_BETA_TESTING`, group "App Store Connect Users",
 `ready_to_install: true` (receipt `~/.good-time/release/receipts/5.json`). A second `scripts/beta-ios` on that
 commit stopped at once: "Build 5 (10a3e33) is already ready to install."
+
+## App Store version draft (LKM-771)
+
+`scripts/appstore-prepare` makes the App Store version ready for review and stops there. **Submitting it for
+review is Andrei's action** in App Store Connect; no lane submits, releases, or sets an automatic release, and
+`scripts/release.test.ts` fails if one could.
+
+```sh
+scripts/appstore-prepare           # draft release.json's version (1.1.0) and print the read-back
+scripts/appstore-prepare --state   # only the read-back
+```
+
+It runs fastlane `ios appstore_prepare` (or `appstore_state`) with the release config's key, and:
+
+1. Refuses when App Store Connect's editable version is another version string (it never renames one) or is past
+   drafting (waiting for review, in review).
+2. Finds the newest `VALID`, unexpired build of the version (`GoodTimeAppStoreBuilds.newest_valid`); none is an error.
+3. `upload_to_app_store` with `submit_for_review: false`, `automatic_release: false` (release type **manual**) and
+   `skip_binary_upload`: creates or reuses the version, uploads `fastlane/metadata/<locale>/` (name, subtitle,
+   description, keywords, What's New, promotional text) for en-US, ru, es-ES and es-MX, and replaces that version's
+   screenshots in those locales with `fastlane/screenshots/<locale>/` (other versions keep theirs).
+4. Sets the privacy URL (`https://good-time-to-sleep.alikimovich.com/privacy-policy/`) and the support URL: the
+   site's `/support/` when it answers 200 at that moment, else 1.0.4's `https://alikimovich.com/work/good`.
+5. Attaches the build and writes the read-back: version state, release type, build, and per locale the name,
+   URLs, and screenshot counts by display type.
+
+The listing's sources are reviewable files in the repository: `fastlane/metadata/` (deliver's layout) and
+`fastlane/screenshots/` (iPhone 6.9", 1320×2868, and iPad 13", 2064×2752, per locale; how they were taken is in
+`fastlane/screenshots/README.md`).
+
+Not in the API, so left to Andrei in App Store Connect: App Privacy ("Data Not Collected": the app collects
+nothing; its privacy manifest declares no collected data and no tracking), and the submission itself.
+
+## What the shipped bundle declares (LKM-771)
+
+- **Privacy manifest.** Exact (from `40377f0`) writes `PrivacyInfo.xcprivacy` into the app and each Exact framework
+  from the required-reason APIs linked into it, and merges the app's own `exact-app/PrivacyInfo.xcprivacy`
+  (UserDefaults `CA92.1` for the alarm module's record, no tracking, no collected data).
+- **Orientation.** `app.json` `"orientation": "portrait"`: the iPhone is portrait-only, as 1.0.4 was; the iPad keeps
+  all four orientations, which its multitasking requires.
+- **Launch screen.** `background_color` and `color_scheme_dark.background_color` are `gt.background`
+  (`#f3f3f4` / `#14110f`), so the launch screen is the app's own ground in light and dark.
+- **`ExactBuildHost`.** Exact stamps the build machine's host name into `Info.plist` and offers no switch to
+  omit it; it stays (it names the Mac, nothing else).

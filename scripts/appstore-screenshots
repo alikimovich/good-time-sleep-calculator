@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+# LKM-771: the App Store screenshots of the Exact app, from the iOS Simulator, into fastlane/screenshots/<locale>/.
+#   scripts/appstore-screenshots [<locale> …]     # default: en-US ru es-ES es-MX
+# Two simulators (created on first use, iOS 27.2): "GT Shots iPhone 69" (iPhone 17 Pro Max, 6.9", 1320×2868) and
+# "GT Shots iPad 13" (iPad Pro 13-inch M5, 2064×2752). Status bar 9:41, full battery, light appearance, the
+# simulator's language and region set to the locale's. The iPad is in iPadOS's default windowed-apps mode: its
+# status bar names the app and a window's corner shows the resize grabber.
+# Each set: 1 the intro, 2 Wake Up's times, 3 Settings with an alarm tone chosen, 4 Bed Time with an alarm set.
+# The alarm is the module's fixture (GoodTimeAlarmFixture authorized): nothing reaches AlarmKit. The drive's clock
+# starts at EPOCH in TIME_ZONE (a Monday, 10:47 PM), so every set shows the same times.
+set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+
+BUNDLE="com.alikimovich.good-time-to-sleep"
+RUNTIME="com.apple.CoreSimulator.SimRuntime.iOS-27-2"
+OUT="$ROOT/fastlane/screenshots"
+locales=("$@")
+[[ ${#locales[@]} -gt 0 ]] || locales=(en-US ru es-ES es-MX)
+export CARGO_TARGET_DIR="$IOS_TARGET_DIR"
+EPOCH="${GT_SHOTS_EPOCH:-2026-11-23T22:47:00Z}"
+TIME_ZONE="${GT_SHOTS_TIME_ZONE:-UTC}"
+
+# udid <name> <device type>: the simulator, created if missing, booted.
+udid() {
+  local id
+  id="$(xcrun simctl list devices -j | jq -r --arg n "$1" '[.devices[][] | select(.name == $n and .isAvailable)][0].udid // empty')"
+  [[ -n "$id" ]] || id="$(xcrun simctl create "$1" "$2" "$RUNTIME")"
+  xcrun simctl boot "$id" 2>/dev/null || true
+  xcrun simctl bootstatus "$id" -b >/dev/null
+  echo "$id"
+}
+
+# The app's language and region: the App Store locale, ru as ru-RU.
+tag_of() { case "$1" in ru) echo "ru-RU";; *) echo "$1";; esac; }
+# The simulator's own language and region, which UIKit's time picker and the iPad's status-bar date follow
+# (the drive's --locale reaches only the app). Changing them reboots the simulator.
+system_locale() { # system_locale <udid> <language> <region>
+  local id="$1"
+  [[ "$(xcrun simctl spawn "$id" defaults read -g AppleLocale 2>/dev/null || true)" == "$3" ]] && return
+  xcrun simctl spawn "$id" defaults write -g AppleLanguages -array "$2"
+  xcrun simctl spawn "$id" defaults write -g AppleLocale "$3"
+  xcrun simctl shutdown "$id"
+  xcrun simctl boot "$id"
+  xcrun simctl bootstatus "$id" -b >/dev/null
+}
+
+shoot() { # shoot <udid> <sim name> <prefix> <locale> <pixels a point>
+  local id="$1" sim="$2" prefix="$3" locale="$4" scale="$5" dir="$OUT/$4"
+  mkdir -p "$dir"
+  local tag; tag="$(tag_of "$locale")"
+  system_locale "$id" "$tag" "${tag/-/_}"
+  xcrun simctl ui "$id" appearance light
+  xcrun simctl status_bar "$id" override --time 9:41 --batteryState discharging --batteryLevel 100 \
+    --cellularMode active --cellularBars 4 --wifiMode active --wifiBars 3 --dataNetwork wifi
+  xcrun simctl spawn "$id" defaults write "$BUNDLE" GoodTimeAlarmFixture authorized
+  step "$locale on $sim"
+  rm -f "$dir/$prefix"-*.png
+  (cd "$APP_DIR" && EXACT_SIM="$sim" bun exact.mjs agent ios --reset-storage --scale "$scale" \
+    --locale "$tag" --epoch "$EPOCH" --time-zone "$TIME_ZONE" \
+    "clock data" "clock settle" "screenshot $dir/${prefix}-1-intro.png display" \
+    "tap intro-continue" "clock data" "clock +400" "clock settle" "screenshot $dir/${prefix}-2-wakeup.png display" \
+    "tap wakeup-settings" "clock settle" "type settings-alarm-sound sunrise" "clock data" "clock settle" \
+    "screenshot $dir/${prefix}-3-settings.png display" \
+    back "clock settle" "tap tab-bedtime" "clock data" "tap bedtime-alarm" "clock +500" "clock data" "clock +400" \
+    "clock settle" "screenshot $dir/${prefix}-4-bedtime-alarm.png display")
+  xcrun simctl spawn "$id" defaults delete "$BUNDLE" GoodTimeAlarmFixture || true
+}
+
+iphone="$(udid "GT Shots iPhone 69" com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro-Max)"
+ipad="$(udid "GT Shots iPad 13" com.apple.CoreSimulator.SimDeviceType.iPad-Pro-13-inch-M5-12GB)"
+for locale in "${locales[@]}"; do
+  shoot "$iphone" "GT Shots iPhone 69" iphone69 "$locale" 3
+  shoot "$ipad" "GT Shots iPad 13" ipad13 "$locale" 2
+done
+
+system_locale "$iphone" en-US en_US
+system_locale "$ipad" en-US en_US
+
+step "clear the development build's frame-health probe (a 1-point black square, top-left; not in release builds)"
+swift "$ROOT/scripts/appstore-screenshot-probe.swift" "$OUT"/*/*.png
+
+step "sizes"
+for f in "$OUT"/*/*.png; do
+  echo "$(sips -g pixelWidth -g pixelHeight "$f" | awk '/pixel/ {printf "%s ", $2}') ${f#"$ROOT"/}"
+done

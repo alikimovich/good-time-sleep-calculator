@@ -8,9 +8,10 @@ APP_DIR="$ROOT/exact-app"
 EXACT_REPO_URL="https://github.com/expo/exact"
 EXACT_DIR="${EXACT_DIR:-$HOME/dev/exact}"
 EXACT_PIN="$(tr -d '[:space:]' <"$ROOT/exact.pin")"
-# exact-app/exact.mjs finds the checkout through EXACT2 (else its committed relative path, ../../exact from the
-# main checkout). Naming it makes the scripts work from any worktree location.
-export EXACT2="$EXACT_DIR"
+# exact-app/exact.mjs finds the checkout through EXACT (else its committed seed, ../../exact from the main
+# checkout) and links it as exact-app/.exact/checkout (gitignored). Naming it makes the scripts work from any
+# worktree location.
+export EXACT="$EXACT_DIR"
 
 # The iOS build's Cargo target, shared by every worktree so only the first iOS build on this Mac is cold.
 IOS_TARGET_DIR="${GOOD_TIME_IOS_TARGET:-$HOME/.cache/good-time/exact-target}"

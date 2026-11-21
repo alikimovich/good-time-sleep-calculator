@@ -52,3 +52,17 @@ module GoodTimeBuildNumbers
     { max: max, builds: builds, pages: pages }
   end
 end
+
+# LKM-771: the build the App Store version draft attaches.
+module GoodTimeAppStoreBuilds
+  # Keyword arguments for Spaceship::ConnectAPI::Build.all: the processed builds of one marketing version.
+  def self.valid_query(app_id, version)
+    { app_id: app_id, version: version, processing_states: "VALID", includes: nil, limit: 200 }
+  end
+
+  # builds respond to version (the build number), processing_state and expired. The VALID, unexpired
+  # build with the highest number, or nil.
+  def self.newest_valid(builds)
+    builds.select { |b| b.processing_state == "VALID" && !b.expired }.max_by { |b| b.version.to_s.to_i }
+  end
+end

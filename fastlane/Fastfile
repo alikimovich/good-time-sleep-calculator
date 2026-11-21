@@ -10,6 +10,10 @@
 # Lanes that query Apple write their result as JSON to output:<path>, so the caller never parses logs.
 #
 # Internal testers only: upload never submits for review and never distributes to external testers.
+#
+# LKM-771: appstore_prepare drafts the App Store version (metadata, screenshots, URLs, build, manual
+# release) and stops there. Submitting it for review is Andrei's action in App Store Connect; no lane
+# submits, releases or sets an automatic release.
 require "json"
 require_relative "build_numbers"
 
@@ -19,6 +23,16 @@ ENV["FASTLANE_SKIP_UPDATE_CHECK"] = "1"
 ENV["FASTLANE_HIDE_CHANGELOG"] = "1"
 
 BUNDLE_ID = "com.alikimovich.good-time-to-sleep".freeze
+
+# The App Store listing (LKM-771): fastlane/metadata/<locale>/*.txt and fastlane/screenshots/<locale>/*.png.
+APP_STORE_LOCALES = %w[en-US ru es-ES es-MX].freeze
+PRIVACY_URL = "https://good-time-to-sleep.alikimovich.com/privacy-policy/".freeze
+SUPPORT_URL = "https://good-time-to-sleep.alikimovich.com/support/".freeze
+# The support URL of 1.0.4, kept while the site's /support/ page does not answer 200.
+SUPPORT_URL_FALLBACK = "https://alikimovich.com/work/good".freeze
+# App Store version states a draft may be edited in. Anything else (waiting for or in review, ready
+# for sale) is left alone.
+EDITABLE_VERSION_STATES = %w[PREPARE_FOR_SUBMISSION DEVELOPER_REJECTED REJECTED METADATA_REJECTED].freeze
 
 default_platform(:ios)
 
@@ -47,6 +61,43 @@ end
 def internal_group(app, name)
   groups = app.get_beta_groups(includes: "betaTesters").select(&:is_internal_group)
   name.to_s.empty? ? groups.first : groups.find { |g| g.name == name }
+end
+
+# true when url answers 200 after redirects.
+def url_answers_200?(url, redirects = 5)
+  require "net/http"
+  uri = URI(url)
+  response = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == "https", open_timeout: 15, read_timeout: 15) do |http|
+    http.request(Net::HTTP::Get.new(uri))
+  end
+  return url_answers_200?(URI.join(url, response["location"]).to_s, redirects - 1) if response.is_a?(Net::HTTPRedirection) && redirects.positive?
+  response.code == "200"
+rescue StandardError
+  false
+end
+
+# What App Store Connect has for one App Store version: state, release type, build, and per locale the
+# listing's name, URLs and screenshot counts by display type.
+def app_store_state(app, version_string)
+  version = app.get_app_store_versions(filter: { versionString: version_string, platform: "IOS" }).first
+  result = { bundle_id: BUNDLE_ID, version: version_string, found: !version.nil? }
+  return result unless version
+  build = version.get_build
+  info = app.fetch_edit_app_info || app.fetch_live_app_info
+  names = info ? info.get_app_info_localizations.to_h { |l| [l.locale, { name: l.name, subtitle: l.subtitle, privacy_url: l.privacy_policy_url }] } : {}
+  locales = version.get_app_store_version_localizations.sort_by(&:locale).map do |l|
+    sets = l.get_app_screenshot_sets.to_h { |set| [set.screenshot_display_type, Array(set.app_screenshots).length] }
+    { locale: l.locale, support_url: l.support_url, marketing_url: l.marketing_url, keywords: l.keywords,
+      description_chars: l.description.to_s.length, whats_new_chars: l.whats_new.to_s.length, screenshots: sets }
+      .merge(names[l.locale] || {})
+  end
+  result.merge(
+    id: version.id,
+    state: version.app_store_state,
+    release_type: version.release_type,
+    build: build && { number: build.version, processing_state: build.processing_state },
+    locales: locales
+  )
 end
 
 platform :ios do
@@ -139,5 +190,64 @@ platform :ios do
       filename: "GoodTime_AppStore.mobileprovision"
     )
     write_json(options, { path: lane_context[SharedValues::SIGH_PROFILE_PATH], uuid: uuid, name: lane_context[SharedValues::SIGH_NAME] })
+  end
+
+  desc "Draft the App Store version (LKM-771): create or reuse it, upload fastlane/metadata and fastlane/screenshots,"
+  desc "set the URLs, attach the newest VALID build of the version, release manually. Never submits for review."
+  lane :appstore_prepare do |options|
+    authenticate
+    version_string = require_option(options, :version)
+    app = Spaceship::ConnectAPI::App.find(BUNDLE_ID)
+    UI.user_error!("App Store Connect has no app record for #{BUNDLE_ID}.") unless app
+
+    # The draft to edit: none yet (deliver creates it) or this version in an editable state. Another
+    # version's draft is never renamed, and a version in or waiting for review is never touched.
+    draft = app.get_edit_app_store_version(platform: Spaceship::ConnectAPI::Platform::IOS)
+    if draft
+      UI.user_error!("App Store Connect's draft is #{draft.version_string}, not #{version_string}; not renaming it.") if draft.version_string != version_string
+      UI.user_error!("#{version_string} is #{draft.app_store_state}; only a draft (#{EDITABLE_VERSION_STATES.join(', ')}) is edited.") unless EDITABLE_VERSION_STATES.include?(draft.app_store_state)
+    end
+
+    build = GoodTimeAppStoreBuilds.newest_valid(Spaceship::ConnectAPI::Build.all(**GoodTimeAppStoreBuilds.valid_query(app.id, version_string)))
+    UI.user_error!("No VALID build of #{version_string}. Run scripts/beta-ios first.") unless build
+
+    support_url = url_answers_200?(SUPPORT_URL) ? SUPPORT_URL : SUPPORT_URL_FALLBACK
+    UI.important("Support URL: #{support_url}#{support_url == SUPPORT_URL ? '' : " (#{SUPPORT_URL} does not answer 200)"}")
+    fastlane_dir = File.expand_path(FastlaneCore::FastlaneFolder.path)
+
+    upload_to_app_store(
+      app_identifier: BUNDLE_ID,
+      platform: "ios",
+      app_version: version_string,
+      skip_binary_upload: true,
+      skip_app_version_update: false,
+      metadata_path: File.join(fastlane_dir, "metadata"),
+      screenshots_path: File.join(fastlane_dir, "screenshots"),
+      overwrite_screenshots: true,
+      skip_screenshots: false,
+      skip_metadata: false,
+      privacy_url: APP_STORE_LOCALES.to_h { |l| [l, PRIVACY_URL] },
+      support_url: APP_STORE_LOCALES.to_h { |l| [l, support_url] },
+      # The draft only: never submitted, never released automatically.
+      submit_for_review: false,
+      automatic_release: false,
+      reject_if_possible: false,
+      run_precheck_before_submit: false,
+      precheck_include_in_app_purchases: false,
+      force: true
+    )
+
+    version = app.get_edit_app_store_version(platform: Spaceship::ConnectAPI::Platform::IOS)
+    UI.user_error!("No #{version_string} draft after the upload.") unless version && version.version_string == version_string
+    version.select_build(build_id: build.id)
+    write_json(options, app_store_state(app, version_string).merge(selected_build: build.version))
+  end
+
+  desc "Write what App Store Connect has for one App Store version (LKM-771). Reads only."
+  lane :appstore_state do |options|
+    authenticate
+    app = Spaceship::ConnectAPI::App.find(BUNDLE_ID)
+    UI.user_error!("App Store Connect has no app record for #{BUNDLE_ID}.") unless app
+    write_json(options, app_store_state(app, require_option(options, :version)))
   end
 end
