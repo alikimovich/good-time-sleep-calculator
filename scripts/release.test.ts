@@ -218,7 +218,7 @@ describe("release settings and the Exact build environment", () => {
       home: "/h",
     });
     expect(env).toMatchObject({
-      EXACT2: "/x/exact",
+      EXACT: "/x/exact",
       CARGO_TARGET_DIR: "/x/target",
       EXACT_IDENTITY: SHA1,
       EXACT_PROFILE: "/x/p.mobileprovision",
@@ -429,15 +429,54 @@ describe("shutdown", () => {
 
 describe("fastlane", () => {
   const fastfile = readFileSync(join(ROOT, "fastlane", "Fastfile"), "utf8");
+  const code = fastfile.split("\n").filter((l) => !l.trim().startsWith("#")).join("\n");
 
   test("upload is internal only: no submission, no external distribution, no waiting", () => {
     const upload = fastfile.slice(fastfile.indexOf("lane :upload"), fastfile.indexOf("lane :status"));
     expect(upload).toContain("skip_submission: true");
     expect(upload).toContain("distribute_external: false");
     expect(upload).toContain("skip_waiting_for_build_processing: true");
-    // No lane can submit for review, publish to the App Store or name tester groups for distribution.
-    const code = fastfile.split("\n").filter((l) => !l.trim().startsWith("#")).join("\n");
-    expect(code).not.toMatch(/submit_for_review|deliver\(|upload_to_app_store|app_store_build_number|distribute_external:\s*true|\bgroups:/);
+    // No lane can distribute to external testers or name tester groups for distribution.
+    expect(code).not.toMatch(/app_store_build_number|distribute_external:\s*true|\bgroups:/);
+  });
+
+  // LKM-771: appstore_prepare drafts the App Store version. Submitting it stays Andrei's action.
+  test("no lane can submit for review or release: the only App Store upload is the draft's", () => {
+    // The one call that writes the App Store version, inside appstore_prepare, says no to both.
+    expect(code.match(/upload_to_app_store\(/g)).toHaveLength(1);
+    const lane = code.slice(code.indexOf("lane :appstore_prepare"), code.indexOf("lane :appstore_state"));
+    const call = lane.slice(lane.indexOf("upload_to_app_store("), lane.indexOf("\n    )\n", lane.indexOf("upload_to_app_store(")));
+    expect(call).toContain("submit_for_review: false");
+    expect(call).toContain("automatic_release: false");
+    expect(call).toContain("skip_binary_upload: true");
+    expect(call).not.toMatch(/auto_release_date|phased_release|reject_if_possible:\s*true/);
+    // Every other path to review or release: deliver's own call, fastlane's submission actions, Spaceship's
+    // review submissions, and any submit/automatic-release option set to anything but false.
+    expect(code).not.toMatch(/\bdeliver\(|appstore\(|submit_for_review\(|app_store_connect_submit|review_submission|ReviewSubmission|create_app_store_version_submission|create_app_store_version_release_request|release_request/);
+    expect(code).not.toMatch(/submit_for_review:(?!\s*false\b)|automatic_release:(?!\s*false\b)|auto_release_date:/);
+    // The draft's state lane only reads.
+    const state = code.slice(code.indexOf("lane :appstore_state"));
+    expect(state).not.toMatch(/upload_to_app_store|select_build|update\(|create_|delete/);
+  });
+
+  test("the draft attaches the newest VALID, unexpired build of the version", () => {
+    const script = `
+      require "json"
+      require ARGV[0]
+      FakeBuild = Struct.new(:version, :processing_state, :expired)
+      builds = JSON.parse(STDIN.read).map { |b| FakeBuild.new(*b) }
+      pick = GoodTimeAppStoreBuilds.newest_valid(builds)
+      puts JSON.generate(pick&.version)
+    `;
+    const pick = (builds: unknown[]) => {
+      const proc = Bun.spawnSync(["ruby", "-e", script, join(ROOT, "fastlane", "build_numbers.rb")], {
+        stdin: new TextEncoder().encode(JSON.stringify(builds)),
+      });
+      expect(proc.exitCode).toBe(0);
+      return JSON.parse(proc.stdout.toString());
+    };
+    expect(pick([["9", "VALID", false], ["15", "VALID", false], ["16", "PROCESSING", false], ["17", "INVALID", false], ["18", "VALID", true]])).toBe("15");
+    expect(pick([["16", "PROCESSING", false]])).toBeNull();
   });
 
   test("the paging helper finds the highest build number across pages", () => {

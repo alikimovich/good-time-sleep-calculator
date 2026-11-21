@@ -9,7 +9,9 @@ Good Time is a sleep calculator for iOS. This repository holds two apps:
 
 Both apps use the name "Good Time" and bundle ID `com.alikimovich.good-time-to-sleep` (team `ZMVK3ALPSD`).
 
-Project rules: use Bun, not npm. Never submit to the App Store, never submit for review, never add external testers.
+Project rules: use Bun, not npm. Never submit to the App Store, never submit for review, never release, never add
+external testers. Drafting the App Store version (`scripts/appstore-prepare`: its metadata, screenshots, URLs and
+build, release type manual) is allowed; pressing "Submit for Review" stays Andrei's action (LKM-771).
 Keep secrets (the App Store Connect key, signing material) outside the repository.
 
 ## Toolchain
@@ -25,7 +27,7 @@ Keep secrets (the App Store Connect key, signing material) outside the repositor
 
 Exact has no packaged CLI: the app runs Exact's scripts from the checkout. `exact-app/exact.mjs` finds it at `../../exact`
 from the main checkout (`~/dev/good-time-sleep-calculator`), which is `~/dev/exact`. In a git worktree it resolves
-the path from the main checkout; the scripts below also export `EXACT2=$EXACT_DIR`, so they work from any worktree.
+the path from the main checkout; the scripts below also export `EXACT=$EXACT_DIR`, so they work from any worktree.
 
 Optional: `xcodebuild -downloadComponent MetalToolchain` lets iOS builds compile Exact's Metal shaders (SVG filters,
 GPU canvases). Without it they fall back to Core Image and Core Graphics, which this app does not need.
@@ -36,6 +38,7 @@ GPU canvases). Without it they fall back to Core Image and Core Graphics, which 
 | --- | --- | --- |
 | `scripts/setup` | **The Forge setup command.** Idempotent: installs rustup and Bun 1.4.2 if missing, clones Exact to `~/dev/exact` if missing, checks out `exact.pin` (refuses if the checkout has local changes), and runs `bun scripts/exact.mjs setup` only when `setup --check` fails. | 50 s when everything is present; ~15 min cold |
 | `scripts/beta-ios [<commit>]` | **The Forge release command.** Builds a clean tree of the commit, reserves a build number (above 3), signs with Exact's `--archive`, uploads to **internal** TestFlight and waits until the internal group can install it. `--doctor` checks the key, signing, the pin and Apple. Details: [docs/release.md](docs/release.md). | ~6 min warm: build 1.7 min, upload 1 min, Apple 3 min; the first build on a Mac adds ~5 min |
+| `scripts/appstore-prepare [--state]` | Drafts the App Store version of `release.json`'s version from `fastlane/metadata/` and `fastlane/screenshots/`, attaches the newest VALID build, release manual; **never submits**. `--state` only reads it back. Details: [docs/release.md](docs/release.md#app-store-version-draft-lkm-771). | ~3 min |
 | `scripts/update-exact-pin [<commit>]` | Moves the Exact pin; see below. | |
 | `scripts/doctor` | Checks the toolchain and changes nothing: Xcode, rustup, Cargo, Bun 1.4.2, the Exact pin, Exact's `setup --check` and `exact-app/`. Names the fix for each gap. | ~30 s |
 | `scripts/perf` | The performance comparison of the SwiftUI app and the Exact app on an iOS Simulator (`Good Time Perf`, created on first use): first frame, frame times during a scripted journey, memory, size. Writes `perf/results/<date>-simulator.json`. Method and results: [docs/performance.md](docs/performance.md). | ~8 min warm |

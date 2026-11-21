@@ -421,7 +421,7 @@ export function archiveEnv(o: {
   const home = o.home ?? homedir();
   return {
     ...LOCALE,
-    EXACT2: o.exactDir,
+    EXACT: o.exactDir,
     CARGO_TARGET_DIR: o.target,
     EXACT_IDENTITY: o.identity,
     EXACT_PROFILE: o.profilePath,

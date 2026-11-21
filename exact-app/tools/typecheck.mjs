@@ -1,6 +1,6 @@
 // Type-checks app.ts on its own, and the unit tests against it, with Exact's pinned TypeScript (its native `tsc`)
 // and the compiler options Exact's builds use (js/bake/src/typescript.mjs: strict, ES2023 + WebWorker, no ambient
-// types). Needs app.contract.d.ts (bun exact.mjs contract types app.contract -o app.contract.d.ts) and EXACT2 or
+// types). Needs app.contract.d.ts (bun exact.mjs contract types app.contract -o app.contract.d.ts) and EXACT or
 // ../../exact naming the pinned Exact checkout. Run from anywhere: bun tools/typecheck.mjs
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -9,10 +9,10 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const app = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const exact = resolve(app, process.env.EXACT2 || '../../exact');
+const exact = resolve(app, process.env.EXACT || '../../exact');
 const bake = join(exact, 'js/bake/src/typescript.mjs');
 const tsc = join(exact, 'node_modules/.bin/tsc');
-if (!existsSync(bake) || !existsSync(tsc)) throw new Error(`no built Exact checkout at ${exact} (set EXACT2; run scripts/setup)`);
+if (!existsSync(bake) || !existsSync(tsc)) throw new Error(`no built Exact checkout at ${exact} (set EXACT; run scripts/setup)`);
 if (!existsSync(join(app, 'app.contract.d.ts'))) throw new Error('app.contract.d.ts is missing; generate it first');
 const { compilerOptions } = await import(pathToFileURL(bake).href);
 const version = execFileSync(tsc, ['--version'], { encoding: 'utf8' }).trim();

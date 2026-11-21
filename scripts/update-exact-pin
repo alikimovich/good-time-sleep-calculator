@@ -17,7 +17,7 @@ if [[ "$target" == "$old" ]]; then
 fi
 
 step "Exact $old -> $target"
-git -C "$EXACT_DIR" log --oneline "$old..$target" | head -40
+git -C "$EXACT_DIR" log --oneline -40 "$old..$target"
 echo "$target" >"$ROOT/exact.pin"
 
 "$ROOT/scripts/setup"
