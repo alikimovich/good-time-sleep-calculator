@@ -44,6 +44,12 @@ It exits 0 only when the build is **ready to install** for the internal group, a
    `EXACT_BUILD_NUMBER` (the reserved number), `EXACT_VERSION` and `EXACT_NON_EXEMPT_ENCRYPTION` (from
    [`release.json`](../release.json)), and `CARGO_TARGET_DIR=~/.cache/good-time/exact-release-target`.
    Exact builds the shipping (production-trust, LTO) app, signs it and writes the `.ipa` and its dSYMs.
+   The release target belongs to release jobs only. Exact records which app directory owns each crate name in
+   `<target>/.exact-crates/<crate>` and refuses to build while another existing directory holds it, so before
+   the archive (under the release lock) the job rewrites every record there to name this build's `exact-app/`.
+   **Ad-hoc builds (manual `--archive` runs, experiments, screenshots) must not use the release target**: leave
+   `CARGO_TARGET_DIR` unset or give them their own directory. Build 16 failed because a manual archive in
+   `/tmp/lkm771-arch` had claimed it.
 6. Verifies the `.ipa`: bundle ID, version and build number in `Info.plist`, `codesign --verify --deep --strict`,
    and an Apple Distribution signature of team `ZMVK3ALPSD`. A wrong `.ipa` is never uploaded.
 7. Uploads it with fastlane `upload_to_testflight` (`skip_submission`, `distribute_external: false`).

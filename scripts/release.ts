@@ -434,6 +434,29 @@ export function archiveEnv(o: {
   };
 }
 
+/**
+ * Makes the release build the owner of the release target's crate claims. Exact refuses a shared CARGO_TARGET_DIR
+ * whose `.exact-crates/<crate>` record names another app directory that still exists (an ad-hoc build that used the
+ * release target, or an earlier build's source tree). The release target is the release job's alone and the caller
+ * holds the release lock, so every record that does not name this build's app directory is rewritten to name it.
+ * Returns the records it rewrote.
+ */
+export function claimReleaseTarget(target: string, appDir: string) {
+  const dir = join(target, ".exact-crates");
+  if (!existsSync(dir)) return [];
+  const self = realpathSync(appDir);
+  const rewritten: string[] = [];
+  for (const name of readdirSync(dir)) {
+    const record = join(dir, name);
+    // Crate names have no dots; `<name>.<pid>` files are Exact's unfinished writes.
+    if (name.includes(".") || !statSync(record).isFile()) continue;
+    if (readFileSync(record, "utf8").trim() === self) continue;
+    writeAtomic(record, `${self}\n`);
+    rewritten.push(name);
+  }
+  return rewritten;
+}
+
 // ---- The job ------------------------------------------------------------------------------------
 
 export type Deps = {
@@ -457,6 +480,8 @@ export type Options = {
   forceNew: boolean;
   pollMs: number;
   timeoutMs: number;
+  /** The release build's CARGO_TARGET_DIR; its crate claims are taken over before the archive. */
+  target?: string;
 };
 
 export class ProcessingTimeout extends Error {}
@@ -524,6 +549,10 @@ export async function release(opts: Options, deps: Deps): Promise<Receipt> {
       r.timestamps.archive_started_at = deps.now().toISOString();
       saveReceipt(r, deps.now());
       deps.say(`Building Good Time ${r.marketing_version} (${r.build_number}) from a clean tree of ${r.short_sha}. Log: ${r.paths.logs.archive}`);
+      if (opts.target) {
+        const taken = claimReleaseTarget(opts.target, join(r.paths.source, "exact-app"));
+        if (taken.length) deps.say(`Took over the release target's claim on ${taken.join(", ")} (it named another app directory).`);
+      }
       r.exact_commit = await deps.archive(r, settings, r.paths.logs.archive);
       findArtifacts(r);
       if (!r.paths.ipa) throw Error(`The archive finished but ${r.paths.artifacts} has no ${IPA_NAME}.`);
@@ -930,6 +959,7 @@ if (import.meta.main) {
           forceNew: args.forceNew,
           pollMs: positiveNumber(process.env.GT_PROCESSING_POLL_SECONDS, 60, "GT_PROCESSING_POLL_SECONDS") * 1000,
           timeoutMs: positiveNumber(process.env.GT_PROCESSING_TIMEOUT_MINUTES, 90, "GT_PROCESSING_TIMEOUT_MINUTES") * 60000,
+          target: releaseTarget(process.env),
         },
         liveDeps(root, loaded.config, home, process.env),
       );
