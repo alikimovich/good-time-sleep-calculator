@@ -92,8 +92,8 @@ fastlane ios profile output_directory:$HOME/.good-time/release/profiles output:/
 ## Version
 
 [`release.json`](../release.json) holds the marketing version and the export-compliance answer. The SwiftUI app's
-1.0.4 is live on the App Store, so its version train is closed: the Exact app ships as **1.1.0**. Raise
-`marketing_version` before the next App Store release closes 1.1.0. `uses_non_exempt_encryption: false` is true for
+1.0.4 is live on the App Store and Apple has closed the 1.1.0 train. The next internal TestFlight build uses
+**1.1.1**. Raise `marketing_version` when that train closes. `uses_non_exempt_encryption: false` is true for
 this app (no encryption beyond what iOS provides); without it Apple holds every build at `MISSING_EXPORT_COMPLIANCE`.
 
 ## Apple's side (checked 2026-11-11)
@@ -137,7 +137,7 @@ review is Andrei's action** in App Store Connect; no lane submits, releases, or 
 `scripts/release.test.ts` fails if one could.
 
 ```sh
-scripts/appstore-prepare           # draft release.json's version (1.1.0) and print the read-back
+scripts/appstore-prepare           # draft release.json's version (1.1.1) and print the read-back
 scripts/appstore-prepare --state   # only the read-back
 ```
 

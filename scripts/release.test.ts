@@ -96,6 +96,7 @@ test("assertOutsideRepo refuses release state in the repository", () => {
   const link = join(dir, "repo-link");
   symlinkSync(ROOT, link, "dir");
   expect(() => assertOutsideRepo(join(link, "not-created", "release"), ROOT, "GT_RELEASE_HOME")).toThrow("inside the repository");
+  expect(() => assertOutsideRepo("/Xprivate/tmp/gt-missing", "/private/tmp", "GT_RELEASE_HOME")).not.toThrow();
 });
 
 describe("signing", () => {
@@ -199,10 +200,10 @@ describe("readiness and planRetry", () => {
 });
 
 describe("release settings and the Exact build environment", () => {
-  test("the committed release.json is valid and above the App Store's released 1.0.4", () => {
+  test("the committed release.json is valid and above the App Store's closed 1.1.0", () => {
     const s = releaseSettings(readFileSync(join(ROOT, "release.json"), "utf8"));
     const [a, b, c] = s.marketingVersion.split(".").map(Number);
-    expect(a * 1e6 + (b ?? 0) * 1e3 + (c ?? 0)).toBeGreaterThan(1 * 1e6 + 0 * 1e3 + 4);
+    expect(a * 1e6 + (b ?? 0) * 1e3 + (c ?? 0)).toBeGreaterThan(1 * 1e6 + 1 * 1e3);
     expect(s.nonExemptEncryption).toBe(false);
   });
 
