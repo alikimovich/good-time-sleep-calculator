@@ -25,7 +25,7 @@
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { homedir, hostname, constants as osConstants } from "node:os";
-import { dirname, join, relative, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve } from "node:path";
 
 export const TEAM_ID = "ZMVK3ALPSD";
 export const BUNDLE_ID = "com.alikimovich.good-time-to-sleep";
@@ -60,7 +60,7 @@ function isInside(path: string, root: string) {
     const absolute = resolve(p);
     if (existsSync(absolute)) return realpathSync(absolute);
     const parent = dirname(absolute);
-    return parent === absolute ? absolute : join(real(parent), absolute.slice(parent.length + 1));
+    return parent === absolute ? absolute : join(real(parent), basename(absolute));
   };
   const rel = relative(real(root), real(path));
   return rel === "" || (!rel.startsWith("..") && !rel.startsWith("/"));
