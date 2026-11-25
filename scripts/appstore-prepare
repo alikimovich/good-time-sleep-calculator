@@ -6,6 +6,7 @@
 # Both print the read-back as JSON. Submitting for review stays Andrei's action in App Store Connect.
 # The API key comes from the release config outside the repository (docs/release.md).
 set -euo pipefail
+umask 077
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 lane="appstore_prepare"
