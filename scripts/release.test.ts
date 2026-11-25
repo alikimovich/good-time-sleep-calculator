@@ -1,7 +1,7 @@
 // LKM-650: unit tests of the release job (scripts/release.ts), with fake git, Exact, fastlane and Apple.
 // Run: bun test scripts/release.test.ts (the pinned Bun: ~/.bun-1.4.2/bin/bun).
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import {
@@ -93,6 +93,9 @@ describe("loadConfig", () => {
 test("assertOutsideRepo refuses release state in the repository", () => {
   expect(() => assertOutsideRepo(join(ROOT, "build"), ROOT, "GT_RELEASE_HOME")).toThrow("inside the repository");
   expect(() => assertOutsideRepo(dir, ROOT, "GT_RELEASE_HOME")).not.toThrow();
+  const link = join(dir, "repo-link");
+  symlinkSync(ROOT, link, "dir");
+  expect(() => assertOutsideRepo(join(link, "not-created", "release"), ROOT, "GT_RELEASE_HOME")).toThrow("inside the repository");
 });
 
 describe("signing", () => {

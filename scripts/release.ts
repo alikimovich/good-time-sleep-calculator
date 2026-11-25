@@ -55,7 +55,13 @@ export function exactDir(env: Env) {
 }
 
 function isInside(path: string, root: string) {
-  const real = (p: string) => (existsSync(p) ? realpathSync(p) : resolve(p));
+  // A destination may not exist yet, but one of its parents can be a symlink into the repo.
+  const real = (p: string): string => {
+    const absolute = resolve(p);
+    if (existsSync(absolute)) return realpathSync(absolute);
+    const parent = dirname(absolute);
+    return parent === absolute ? absolute : join(real(parent), absolute.slice(parent.length + 1));
+  };
   const rel = relative(real(root), real(path));
   return rel === "" || (!rel.startsWith("..") && !rel.startsWith("/"));
 }
@@ -936,6 +942,8 @@ function positiveNumber(value: string | undefined, fallback: number, name: strin
 }
 
 if (import.meta.main) {
+  // Receipts and build logs can contain account and signing diagnostics.
+  process.umask(0o077);
   const root = resolve(import.meta.dir, "..");
   try {
     const args = parseArgs(process.argv.slice(2));
